@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import { addTask, getTasks } from "../../../lib/store";
+import prisma from "../../../lib/prisma";
+import { TASK_STATUS } from "../../../lib/types";
 
 export async function GET() {
-  return NextResponse.json({ tasks: getTasks() });
+  const tasks = await prisma.task.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+  return NextResponse.json({ tasks });
 }
 
 export async function POST(request: Request) {
@@ -11,12 +15,17 @@ export async function POST(request: Request) {
   if (!title || !points) {
     return NextResponse.json({ error: "title and points are required" }, { status: 400 });
   }
-  const task = addTask({
-    title,
-    points: Number(points),
-    urgency: urgency ?? "中",
-    risk: risk ?? "中",
-    status,
+  const statusValue = Object.values(TASK_STATUS).includes(status)
+    ? status
+    : TASK_STATUS.BACKLOG;
+  const task = await prisma.task.create({
+    data: {
+      title,
+      points: Number(points),
+      urgency: urgency ?? "中",
+      risk: risk ?? "中",
+      status: statusValue,
+    },
   });
   return NextResponse.json({ task });
 }

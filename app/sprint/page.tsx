@@ -2,18 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Sidebar } from "../components/sidebar";
-
-type Task = { id: string; title: string; points: number; status: string; urgency: string; risk: string };
+import { TASK_STATUS, TaskDTO } from "../../lib/types";
 
 export default function SprintPage() {
   const capacity = 24;
-  const [items, setItems] = useState<Task[]>([]);
+  const [items, setItems] = useState<TaskDTO[]>([]);
   const [newItem, setNewItem] = useState({ title: "", points: 1 });
 
   const fetchTasks = useCallback(async () => {
     const res = await fetch("/api/tasks");
     const data = await res.json();
-    setItems((data.tasks ?? []).filter((t: Task) => t.status !== "backlog"));
+    setItems((data.tasks ?? []).filter((t: TaskDTO) => t.status !== TASK_STATUS.BACKLOG));
   }, []);
 
   useEffect(() => {
@@ -22,7 +21,7 @@ export default function SprintPage() {
   }, [fetchTasks]);
 
   const used = useMemo(
-    () => items.filter((i) => i.status !== "done").reduce((sum, i) => sum + i.points, 0),
+    () => items.filter((i) => i.status !== TASK_STATUS.DONE).reduce((sum, i) => sum + i.points, 0),
     [items],
   );
   const remaining = capacity - used;
@@ -38,7 +37,7 @@ export default function SprintPage() {
         points: Number(newItem.points),
         urgency: "中",
         risk: "中",
-        status: "sprint",
+        status: TASK_STATUS.SPRINT,
       }),
     });
     setNewItem({ title: "", points: 1 });
@@ -49,7 +48,7 @@ export default function SprintPage() {
     await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "done" }),
+      body: JSON.stringify({ status: TASK_STATUS.DONE }),
     });
     fetchTasks();
   };

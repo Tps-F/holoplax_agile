@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import { getThresholds, setThresholds } from "../../../lib/store";
+import prisma from "../../../lib/prisma";
 
 export async function GET() {
-  return NextResponse.json(getThresholds());
+  const current =
+    (await prisma.automationSetting.findFirst({ where: { id: 1 } })) ??
+    (await prisma.automationSetting.create({ data: { low: 35, high: 70 } }));
+  return NextResponse.json({ low: current.low, high: current.high });
 }
 
 export async function POST(request: Request) {
@@ -12,5 +15,10 @@ export async function POST(request: Request) {
   if (!Number.isFinite(low) || !Number.isFinite(high)) {
     return NextResponse.json({ error: "low/high are required" }, { status: 400 });
   }
-  return NextResponse.json(setThresholds(low, high));
+  const saved = await prisma.automationSetting.upsert({
+    where: { id: 1 },
+    update: { low, high },
+    create: { id: 1, low, high },
+  });
+  return NextResponse.json({ low: saved.low, high: saved.high });
 }

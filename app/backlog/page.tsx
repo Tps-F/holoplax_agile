@@ -2,18 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Sidebar } from "../components/sidebar";
-
-type Task = {
-  id: string;
-  title: string;
-  points: number;
-  urgency: string;
-  risk: string;
-  status: string;
-};
+import { TASK_STATUS, TaskDTO } from "../../lib/types";
 
 export default function BacklogPage() {
-  const [items, setItems] = useState<Task[]>([]);
+  const [items, setItems] = useState<TaskDTO[]>([]);
   const [form, setForm] = useState({
     title: "",
     points: 3,
@@ -59,7 +51,7 @@ export default function BacklogPage() {
     await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "sprint" }),
+      body: JSON.stringify({ status: TASK_STATUS.SPRINT }),
     });
     void fetchTasks();
   };
@@ -108,7 +100,7 @@ export default function BacklogPage() {
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="grid gap-3">
             {items
-              .filter((item) => item.status === "backlog")
+              .filter((item) => item.status === TASK_STATUS.BACKLOG)
               .map((item) => (
                 <div
                   key={item.id}

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
-import { addVelocity, getVelocity } from "../../../lib/store";
+import prisma from "../../../lib/prisma";
 
 export async function GET() {
-  return NextResponse.json({ velocity: getVelocity() });
+  const velocity = await prisma.velocityEntry.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+  return NextResponse.json({ velocity });
 }
 
 export async function POST(request: Request) {
@@ -11,6 +14,12 @@ export async function POST(request: Request) {
   if (!name || !points || !range) {
     return NextResponse.json({ error: "name, points, range are required" }, { status: 400 });
   }
-  const entry = addVelocity({ name, points: Number(points), range });
+  const entry = await prisma.velocityEntry.create({
+    data: {
+      name,
+      points: Number(points),
+      range,
+    },
+  });
   return NextResponse.json({ entry });
 }

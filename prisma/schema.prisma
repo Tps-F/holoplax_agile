@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskStatus {
+  BACKLOG
+  SPRINT
+  DONE
+}
+
+model Task {
+  id        String     @id @default(uuid())
+  title     String
+  points    Int
+  urgency   String
+  risk      String
+  status    TaskStatus @default(BACKLOG)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model VelocityEntry {
+  id        String   @id @default(uuid())
+  name      String
+  points    Int
+  range     String
+  createdAt DateTime @default(now())
+}
+
+model AutomationSetting {
+  id        Int      @id @default(1)
+  low       Int
+  high      Int
+  updatedAt DateTime @updatedAt
+}

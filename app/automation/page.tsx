@@ -1,15 +1,38 @@
- "use client";
+"use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Sidebar } from "../components/sidebar";
+import { AutomationSettingDTO } from "../../lib/types";
 
 export default function AutomationPage() {
-  const [thresholds, setThresholds] = useState({ low: 35, high: 70 });
+  const [thresholds, setThresholds] = useState<AutomationSettingDTO>({ low: 35, high: 70 });
+  const [dirty, setDirty] = useState(false);
   const rules = [
     { name: "低スコア自動委任", range: `< ${thresholds.low}`, status: "On" },
     { name: "中スコア分解提案", range: `${thresholds.low}-${thresholds.high}`, status: "On" },
     { name: "高スコア分割必須", range: `> ${thresholds.high}`, status: "On" },
   ];
+
+  const fetchThresholds = useCallback(async () => {
+    const res = await fetch("/api/automation");
+    const data = await res.json();
+    setThresholds({ low: data.low ?? 35, high: data.high ?? 70 });
+    setDirty(false);
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchThresholds();
+  }, [fetchThresholds]);
+
+  const saveThresholds = async () => {
+    await fetch("/api/automation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(thresholds),
+    });
+    setDirty(false);
+  };
 
   return (
     <div className="mx-auto flex min-h-screen max-w-7xl gap-6 px-4 py-10 lg:px-6 lg:py-14">
@@ -30,18 +53,28 @@ export default function AutomationPage() {
               <input
                 type="number"
                 value={thresholds.low}
-                onChange={(e) => setThresholds((p) => ({ ...p, low: Number(e.target.value) || 0 }))}
+                onChange={(e) => {
+                  setThresholds((p) => ({ ...p, low: Number(e.target.value) || 0 }));
+                  setDirty(true);
+                }}
                 className="w-20 border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-[#2323eb]"
               />
               <input
                 type="number"
                 value={thresholds.high}
-                onChange={(e) => setThresholds((p) => ({ ...p, high: Number(e.target.value) || 0 }))}
+                onChange={(e) => {
+                  setThresholds((p) => ({ ...p, high: Number(e.target.value) || 0 }));
+                  setDirty(true);
+                }}
                 className="w-20 border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-[#2323eb]"
               />
-              <span className="border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                即時反映
-              </span>
+              <button
+                onClick={saveThresholds}
+                disabled={!dirty}
+                className="border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb] disabled:opacity-50"
+              >
+                保存
+              </button>
             </div>
           </div>
         </header>

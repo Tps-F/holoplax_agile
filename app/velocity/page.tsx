@@ -1,26 +1,34 @@
- "use client";
+"use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Sidebar } from "../components/sidebar";
+import { VelocityEntryDTO } from "../../lib/types";
 
 export default function VelocityPage() {
-  const [history, setHistory] = useState([
-    { name: "Sprint-10", points: 22, range: "20-26" },
-    { name: "Sprint-11", points: 24, range: "21-27" },
-    { name: "Sprint-12", points: 23, range: "21-25" },
-  ]);
-  const [form, setForm] = useState({ name: "Sprint-13", points: 22, range: "20-26" });
+  const [history, setHistory] = useState<VelocityEntryDTO[]>([]);
+  const [form, setForm] = useState({ name: "Sprint-1", points: 22, range: "20-26" });
 
-  const addEntry = () => {
+  const fetchVelocity = useCallback(async () => {
+    const res = await fetch("/api/velocity");
+    const data = await res.json();
+    setHistory(data.velocity ?? []);
+    const nextNum = (data.velocity?.length ?? 0) + 1;
+    setForm((p) => ({ ...p, name: `Sprint-${nextNum}` }));
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchVelocity();
+  }, [fetchVelocity]);
+
+  const addEntry = async () => {
     if (!form.name.trim()) return;
-    setHistory((prev) => [...prev, { ...form, name: form.name.trim() }]);
-    setForm((p) => ({ ...p, name: `Sprint-${prevNumber(p.name) + 1}` }));
-  };
-
-  const prevNumber = (name: string) => {
-    const match = name.match(/(\d+)/);
-    if (!match) return history.length;
-    return Number(match[1]);
+    await fetch("/api/velocity", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, points: Number(form.points) }),
+    });
+    void fetchVelocity();
   };
 
   return (
