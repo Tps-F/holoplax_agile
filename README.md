@@ -5,6 +5,7 @@
 - Postgres（docker compose で起動）
 - MinIO（S3 互換、docker compose で起動）
 - NextAuth（認証予定）
+- OpenAI（`OPENAI_API_KEY` を `.env` に設定）
 
 ## すぐ使う（docker compose）
 1. `.env` を作成  
@@ -22,4 +23,5 @@
 ## メモ
 - `web` はソースをボリュームマウントし、dev モードで動作。`node_modules` はコンテナ側で作成。
 - `DATABASE_URL` は `db` ホストを指す。NextAuth 用に `NEXTAUTH_SECRET` を設定してから起動する。
+- OpenAI を使うときは `.env` に `OPENAI_API_KEY` を設定する（キーはコミットしないこと）。
 - Docker を使わずに動かす場合: `npm install && npm run dev`（別途 Postgres/MinIO を立ち上げる）。
