@@ -1,12 +1,5 @@
-import Image from "next/image";
-import {
-  BarChart3,
-  Inbox,
-  KanbanSquare,
-  LayoutDashboard,
-  Settings,
-  Zap,
-} from "lucide-react";
+import { Settings } from "lucide-react";
+import { Sidebar } from "./components/sidebar";
 
 const screenMap = [
   {
@@ -40,15 +33,6 @@ const velocityTiles = [
 ];
 
 const splitThreshold = 8;
-
-const navItems = [
-  { label: "ダッシュボード", icon: LayoutDashboard, active: true },
-  { label: "バックログ", icon: Inbox },
-  { label: "スプリント", icon: KanbanSquare },
-  { label: "ベロシティ", icon: BarChart3 },
-  { label: "自動化", icon: Zap },
-  { label: "設定", icon: Settings },
-];
 
 const splitNodes = [
   {
@@ -89,43 +73,7 @@ export default function Home() {
   return (
     <div className="relative isolate min-h-screen bg-white">
       <div className="mx-auto flex min-h-screen max-w-7xl gap-6 px-4 py-10 lg:px-6 lg:py-14">
-        <aside className="sticky top-0 hidden min-h-screen w-60 flex-col border border-slate-200 bg-white p-4 shadow-sm lg:flex">
-          <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-            <Image
-              src="/logo_holoplax.png"
-              alt="Holoplax small logo"
-              width={36}
-              height={36}
-            />
-            <div>
-              <p className="text-xs uppercase tracking-[0.26em] text-slate-500">
-                Holoplax
-              </p>
-              <p className="text-sm font-semibold text-slate-900">
-                Agile OS
-              </p>
-            </div>
-          </div>
-          <nav className="mt-4 flex flex-col gap-1">
-            {navItems.map((item) => (
-              <a
-                key={item.label}
-                href={`#${item.label}`}
-                className={`flex items-center gap-2 px-3 py-2 text-sm transition hover:bg-[#2323eb]/10 ${
-                  item.active
-                    ? "border border-[#2323eb]/40 bg-[#2323eb]/10 text-[#2323eb]"
-                    : "border border-transparent text-slate-700"
-                }`}
-              >
-                <item.icon size={16} />
-                <span>{item.label}</span>
-              </a>
-            ))}
-          </nav>
-          <div className="mt-auto border-t border-slate-200 pt-4 text-xs text-slate-600">
-            スプリント上限 <span className="font-semibold">{splitThreshold}pt</span>
-          </div>
-        </aside>
+        <Sidebar splitThreshold={splitThreshold} />
 
         <div className="relative flex flex-1 flex-col gap-10">
           <header
