@@ -27,7 +27,13 @@ providers.push(
       if (!passwordRow) return null;
       const valid = await compare(password, passwordRow.hash);
       if (!valid) return null;
-      return { id: user.id, name: user.name, email: user.email, image: user.image };
+      return {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        image: user.image,
+        role: user.role,
+      };
     },
   }),
 );
@@ -56,13 +62,21 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/auth/signin",
   },
-  session: { strategy: "database" },
+  session: { strategy: "jwt" },
   callbacks: {
-    session: ({ session, user }) => ({
+    jwt: ({ token, user }) => {
+      if (user) {
+        token.sub = (user as { id?: string }).id ?? token.sub;
+        token.role = (user as { role?: string }).role ?? "USER";
+      }
+      return token;
+    },
+    session: ({ session, token }) => ({
       ...session,
       user: {
         ...session.user,
-        id: user.id,
+        id: token.sub,
+        role: (token as { role?: string }).role ?? "USER",
       },
     }),
   },

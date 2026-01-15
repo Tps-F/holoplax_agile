@@ -16,3 +16,12 @@ export async function requireUserId() {
   }
   return userId;
 }
+
+export async function requireAuth() {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+  if (!userId) {
+    throw new AuthError();
+  }
+  return { userId, role: session?.user?.role ?? "USER" };
+}
