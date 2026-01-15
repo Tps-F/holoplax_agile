@@ -127,7 +127,7 @@ export default function SprintPage() {
         </header>
 
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="grid gap-3 sm:grid-cols-[2fr_1fr]">
+          <div className="grid gap-3">
             <input
               value={newItem.title}
               onChange={(e) => setNewItem((p) => ({ ...p, title: e.target.value }))}
@@ -139,16 +139,22 @@ export default function SprintPage() {
               onChange={(e) => setNewItem((p) => ({ ...p, description: e.target.value }))}
               placeholder="概要（任意）"
               rows={2}
-              className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb] sm:col-span-2"
+              className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
             />
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                value={newItem.points}
-                onChange={(e) => setNewItem((p) => ({ ...p, points: Number(e.target.value) || 0 }))}
-                className="w-24 border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-              />
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+              <label className="grid gap-1 text-xs text-slate-500">
+                ポイント
+                <input
+                  type="number"
+                  min={1}
+                  placeholder="pt"
+                  value={newItem.points}
+                  onChange={(e) =>
+                    setNewItem((p) => ({ ...p, points: Number(e.target.value) || 0 }))
+                  }
+                  className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                />
+              </label>
               <button
                 onClick={addItem}
                 disabled={newItem.points > remaining}
@@ -231,33 +237,43 @@ export default function SprintPage() {
                   className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 />
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <input
-                    type="number"
-                    min={1}
-                    value={editForm.points}
-                    onChange={(e) =>
-                      setEditForm((p) => ({ ...p, points: Number(e.target.value) || 0 }))
-                    }
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                  />
-                  <select
-                    value={editForm.urgency}
-                    onChange={(e) => setEditForm((p) => ({ ...p, urgency: e.target.value }))}
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                  >
-                    {["低", "中", "高"].map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={editForm.risk}
-                    onChange={(e) => setEditForm((p) => ({ ...p, risk: e.target.value }))}
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                  >
-                    {["低", "中", "高"].map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    ポイント
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="pt"
+                      value={editForm.points}
+                      onChange={(e) =>
+                        setEditForm((p) => ({ ...p, points: Number(e.target.value) || 0 }))
+                      }
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    緊急度
+                    <select
+                      value={editForm.urgency}
+                      onChange={(e) => setEditForm((p) => ({ ...p, urgency: e.target.value }))}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    >
+                      {["低", "中", "高"].map((v) => (
+                        <option key={v}>{v}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    リスク
+                    <select
+                      value={editForm.risk}
+                      onChange={(e) => setEditForm((p) => ({ ...p, risk: e.target.value }))}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    >
+                      {["低", "中", "高"].map((v) => (
+                        <option key={v}>{v}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
                 <button
                   onClick={saveEdit}

@@ -341,31 +341,43 @@ export default function BacklogPage() {
                   className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 />
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <input
-                    type="number"
-                    min={1}
-                    value={form.points}
-                    onChange={(e) => setForm((p) => ({ ...p, points: Number(e.target.value) || 0 }))}
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                  />
-                  <select
-                    value={form.urgency}
-                    onChange={(e) => setForm((p) => ({ ...p, urgency: e.target.value }))}
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                  >
-                    {["低", "中", "高"].map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={form.risk}
-                    onChange={(e) => setForm((p) => ({ ...p, risk: e.target.value }))}
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                  >
-                    {["低", "中", "高"].map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    ポイント
+                    <input
+                      type="number"
+                      min={1}
+                      placeholder="pt"
+                      value={form.points}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, points: Number(e.target.value) || 0 }))
+                      }
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    緊急度
+                    <select
+                      value={form.urgency}
+                      onChange={(e) => setForm((p) => ({ ...p, urgency: e.target.value }))}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    >
+                      {["低", "中", "高"].map((v) => (
+                        <option key={v}>{v}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    リスク
+                    <select
+                      value={form.risk}
+                      onChange={(e) => setForm((p) => ({ ...p, risk: e.target.value }))}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    >
+                      {["低", "中", "高"].map((v) => (
+                        <option key={v}>{v}</option>
+                      ))}
+                    </select>
+                  </label>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
