@@ -16,6 +16,7 @@ export const navItems = [
   { label: "ダッシュボード", href: "/", icon: LayoutDashboard },
   { label: "バックログ", href: "/backlog", icon: Inbox },
   { label: "スプリント", href: "/sprint", icon: KanbanSquare },
+  { label: "カンバン", href: "/kanban", icon: KanbanSquare },
   { label: "ベロシティ", href: "/velocity", icon: BarChart3 },
   { label: "自動化", href: "/automation", icon: Zap },
   { label: "設定", href: "/settings", icon: Settings },

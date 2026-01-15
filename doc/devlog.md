@@ -1,35 +1,39 @@
 # 開発日誌 (2026-01-16)
 
 ## 進捗概要
-- Prisma導入し、Postgres永続化前提のスキーマを追加（`prisma/schema.prisma`）。
-- Prismaクライアント初期化（`lib/prisma.ts`）、共通型（`lib/types.ts`）を定義。
-- APIをDB対応に置き換え：
-  - `/api/tasks`, `/api/tasks/[id]`：Task CRUD（status=BACKLOG/SPRINT/DONE）。
-  - `/api/velocity`：VelocityEntry CRUD。
-  - `/api/automation`：しきい値の取得/更新（AutomationSetting）。
-  - `/api/ai/suggest`：OpenAI API呼び出し（キー未設定時はダミー）。
-- フロント改善：
-  - バックログ：右上ボタン→モーダルで追加、API経由で保存/取得、AI提案表示。
-  - スプリント：APIからタスク取得、追加/完了をAPI経由で更新、残りキャパ表示。
-  - ベロシティ：APIから履歴取得、追加をAPI経由で登録。
-  - 自動化/設定：しきい値をAPI経由で更新、即時反映。設定画面も同様。
-  - サイドバー：ページリンクとアクティブ表示を `usePathname` で実装。
-- docker-compose：Postgresホスト公開を5433に変更（コンテナ内5432）。MinIO稼働。
-- Prisma migrate：compose内で `npx prisma migrate dev --name init` 実行、`prisma/migrations` 生成済み（DB初期化済み）。
+- Docker構成をDB/MinIO専用に整理（Nextはホスト起動）。`docker-compose.yml`
+- Taskに説明カラムを追加し、API/フロント対応。`prisma/schema.prisma`, `app/api/tasks/*`, `app/backlog/page.tsx`, `app/sprint/page.tsx`
+- Task CRUDはPATCH/DELETE対応済み（編集/削除UI実装）。
+- AI機能を拡張：
+  - `/api/ai/score`：スコア/ポイント推定（OpenAI or ヒューリスティック）。
+  - `/api/ai/split`：分解提案（OpenAI or ヒューリスティック）。
+  - `/api/ai/logs`：AI提案ログの取得。
+  - `/api/ai/suggest` はログ保存対応。
+- バックログで「AIスコア推定」「分解提案→一括追加」を実装。分解確定時は元タスク削除。
+- 設定画面にAI提案ログを表示。
+- マイグレーション追加: `add_task_description`, `add_ai_suggestion_log`, `cascade_ai_suggestions`。
+- シードスクリプト追加（仮想データ/AIログ）。`scripts/seed-dev.mjs`
 
-## 未解決/懸念
-- 現ディレクトリの `.git` が読み取り専用で `git add/commit` 不可。tmpfile削除などもステージできない。新規クローンで作業を続行する必要あり。
-- リモートにはpush済み（ユーザーがpush済み）。作業継続には新しいクローンを使用。
-- Prisma CLI バージョン混在はコンテナ内で `npm install` + `apk add openssl` で解決し、マイグレーション適用済み。
+## 未実装/未接続の機能
+- NextAuth 認証は未実装（マルチユーザ化未対応）。
+- 自動化ルールは画面のみで、実際の自動処理ロジックは未接続。
+- スプリント開始/終了の状態管理は未実装（ボタンはUIのみ）。
+- 通知/ストレージ設定はUIのみ（MinIOの実利用や設定更新は未実装）。
+- インボックス連携（メモ/カレンダー/メール/チャット）は未実装。
+- AIスコア推定は手動トリガーのみ（作成時の自動推定・保存は未実装）。
+
+## 技術メモ
+- `.env` に `OPENAI_API_KEY` を入れるとAIエンドポイントが実呼び出しになる。
+- AIログは `AiSuggestion` テーブルに保存。Task削除時はCascadeで削除。
 
 ## 再開手順メモ
-1. 新規クローン（例: `/home/takuya/holoplax-fresh`）。現ディレクトリはread-onlyのため撤去/再クローン推奨。
-2. `.env` 作成: `cp .env.example .env`（DATABASE_URL はホストから `localhost:5433`）。
-3. `docker compose up -d db minio`
-4. `DATABASE_URL=postgresql://holoplax:holoplax@localhost:5433/holoplax npx prisma migrate dev --name init`
+1. `.env` 作成: `cp .env.example .env`（DATABASE_URL はホストから `localhost:5433`）。
+2. `docker compose up -d db minio`
+3. `DATABASE_URL=postgresql://holoplax:holoplax@localhost:5433/holoplax npx prisma migrate dev`
+4. `node scripts/seed-dev.mjs`（必要なら仮想データ投入）
 5. `npm run dev` で起動。OpenAI利用時は `OPENAI_API_KEY` を `.env` にセット。
 
 ## 次にやること
-- `.git` read-only問題解消（新クローン推奨）。
-- バックログ/スプリント/ベロシティ/自動化/設定のAPI動作を実DBで再テスト。
-- OpenAI提案を実キーで検証。
+- AIスコア推定をタスク作成フローに自動適用するか決定。
+- 自動化ルールの実処理（低/中/高スコアのフロー）を実装。
+- 認証（NextAuth）とマルチユーザスキーマ設計を開始。
