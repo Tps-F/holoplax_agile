@@ -11,7 +11,11 @@ const main = async () => {
 
   const adminUser = await prisma.user.upsert({
     where: { email: adminEmail },
-    update: {},
+    update: {
+      role: "ADMIN",
+      emailVerified: new Date(),
+      disabledAt: null,
+    },
     create: {
       name: "Admin",
       email: adminEmail,
@@ -22,7 +26,11 @@ const main = async () => {
 
   const testUser = await prisma.user.upsert({
     where: { email: testEmail },
-    update: {},
+    update: {
+      role: "USER",
+      emailVerified: new Date(),
+      disabledAt: null,
+    },
     create: {
       name: "Test User",
       email: testEmail,
@@ -32,11 +40,11 @@ const main = async () => {
   });
 
   const ensurePassword = async (userId, password) => {
-    const existing = await prisma.userPassword.findUnique({ where: { userId } });
-    if (existing) return;
     const hashed = await bcrypt.hash(password, 10);
-    await prisma.userPassword.create({
-      data: { userId, hash: hashed },
+    await prisma.userPassword.upsert({
+      where: { userId },
+      update: { hash: hashed },
+      create: { userId, hash: hashed },
     });
   };
 

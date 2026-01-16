@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import prisma from "./prisma";
 
 export async function resolveWorkspaceId(userId: string) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const preferred = cookieStore.get("workspaceId")?.value ?? null;
 
   if (preferred) {

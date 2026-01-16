@@ -19,7 +19,7 @@ export async function GET() {
       ownerId: m.workspace.ownerId,
     }));
 
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     const preferred = cookieStore.get("workspaceId")?.value ?? null;
     const hasPreferred = preferred
       ? memberships.some((m) => m.workspaceId === preferred)
