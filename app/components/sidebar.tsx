@@ -69,7 +69,8 @@ export function Sidebar({ splitThreshold }: SidebarProps) {
           alt="Holoplax logo"
           width={180}
           height={56}
-          className="h-auto w-full"
+          className="h-auto"
+          style={{ width: "100%", height: "auto" }}
           priority
         />
       </div>

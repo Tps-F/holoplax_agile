@@ -102,10 +102,10 @@ export async function POST(request: Request) {
         status: statusValue,
         dueDate: dueDate ? new Date(dueDate) : null,
         tags: Array.isArray(tags) ? tags.map((tag: string) => String(tag)) : [],
-        userId,
-        workspaceId,
         sprint: activeSprint ? { connect: { id: activeSprint.id } } : undefined,
         assignee: safeAssigneeId ? { connect: { id: safeAssigneeId } } : undefined,
+        user: { connect: { id: userId } },
+        workspace: { connect: { id: workspaceId } },
       },
     });
     if (allowedDependencies.length > 0) {

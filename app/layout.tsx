@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "Holoplax | Agile OS for Life Work",
   description:
     "Personal agile system with velocity, backlog automation, and AI readiness for your life sprints.",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({

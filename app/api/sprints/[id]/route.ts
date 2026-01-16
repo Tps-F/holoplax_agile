@@ -12,7 +12,7 @@ import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { userId } = await requireAuth();
@@ -20,7 +20,7 @@ export async function PATCH(
     if (!workspaceId) {
       return badRequest("workspace is required");
     }
-    const { id } = params;
+    const { id } = await params;
     const body = await request.json();
     const data: Record<string, unknown> = {};
     if (body.name !== undefined) {

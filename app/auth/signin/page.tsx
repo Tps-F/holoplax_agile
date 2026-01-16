@@ -49,7 +49,8 @@ export default function SignInPage() {
               alt="Holoplax logo"
               width={160}
               height={48}
-              className="h-auto w-40"
+              className="h-auto"
+              style={{ width: "10rem", height: "auto" }}
               priority
             />
             <h1 className="text-4xl font-semibold leading-tight">
