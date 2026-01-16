@@ -7,6 +7,7 @@ import {
 } from "../../../../lib/api-response";
 import prisma from "../../../../lib/prisma";
 import { TASK_STATUS } from "../../../../lib/types";
+import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 export async function PATCH(
   request: Request,
@@ -26,23 +27,20 @@ export async function PATCH(
   }
 
   try {
-    const { userId, role } = await requireAuth();
-    if (role === "ADMIN") {
-      const updated = await prisma.task.update({
-        where: { id },
-        data,
-      });
-      return ok({ task: updated });
+    const { userId } = await requireAuth();
+    const workspaceId = await resolveWorkspaceId(userId);
+    if (!workspaceId) {
+      return notFound("workspace not selected");
     }
     const updated = await prisma.task.updateMany({
-      where: { id, userId },
+      where: { id, workspaceId },
       data,
     });
     if (!updated.count) {
       return notFound();
     }
     const task = await prisma.task.findFirst({
-      where: { id, userId },
+      where: { id, workspaceId },
     });
     return ok({ task });
   } catch (error) {
@@ -59,14 +57,13 @@ export async function DELETE(
 ) {
   const { id } = await params;
   try {
-    const { userId, role } = await requireAuth();
-    if (role === "ADMIN") {
-      await prisma.aiSuggestion.deleteMany({ where: { taskId: id } });
-      await prisma.task.delete({ where: { id } });
-      return ok({ ok: true });
+    const { userId } = await requireAuth();
+    const workspaceId = await resolveWorkspaceId(userId);
+    if (!workspaceId) {
+      return notFound("workspace not selected");
     }
-    await prisma.aiSuggestion.deleteMany({ where: { taskId: id, userId } });
-    const deleted = await prisma.task.deleteMany({ where: { id, userId } });
+    await prisma.aiSuggestion.deleteMany({ where: { taskId: id } });
+    const deleted = await prisma.task.deleteMany({ where: { id, workspaceId } });
     if (!deleted.count) {
       return notFound();
     }

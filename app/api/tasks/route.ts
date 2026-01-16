@@ -8,19 +8,18 @@ import {
 import prisma from "../../../lib/prisma";
 import { TASK_STATUS } from "../../../lib/types";
 import { adoptOrphanTasks } from "../../../lib/user-data";
+import { resolveWorkspaceId } from "../../../lib/workspace-context";
 
 export async function GET() {
   try {
-    const { userId, role } = await requireAuth();
-    if (role === "ADMIN") {
-      const tasks = await prisma.task.findMany({
-        orderBy: { createdAt: "desc" },
-      });
-      return ok({ tasks });
+    const { userId } = await requireAuth();
+    const workspaceId = await resolveWorkspaceId(userId);
+    if (!workspaceId) {
+      return ok({ tasks: [] });
     }
-    await adoptOrphanTasks(userId);
+    await adoptOrphanTasks(userId, workspaceId);
     const tasks = await prisma.task.findMany({
-      where: { userId },
+      where: { workspaceId },
       orderBy: { createdAt: "desc" },
     });
     return ok({ tasks });
@@ -34,11 +33,15 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { userId, role } = await requireAuth();
+    const { userId } = await requireAuth();
     const body = await request.json();
     const { title, description, points, urgency, risk, status } = body;
     if (!title || points === undefined || points === null) {
       return badRequest("title and points are required");
+    }
+    const workspaceId = await resolveWorkspaceId(userId);
+    if (!workspaceId) {
+      return badRequest("workspace is required");
     }
     const statusValue = Object.values(TASK_STATUS).includes(status)
       ? status
@@ -51,7 +54,8 @@ export async function POST(request: Request) {
         urgency: urgency ?? "中",
         risk: risk ?? "中",
         status: statusValue,
-        userId: role === "ADMIN" ? userId : userId,
+        userId,
+        workspaceId,
       },
     });
     return ok({ task });

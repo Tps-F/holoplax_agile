@@ -12,7 +12,8 @@ import {
   Zap,
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export const navItems = [
   { label: "ダッシュボード", href: "/", icon: LayoutDashboard },
@@ -34,6 +35,32 @@ type SidebarProps = {
 export function Sidebar({ splitThreshold }: SidebarProps) {
   const pathname = usePathname();
   const { data: session, status } = useSession();
+  const router = useRouter();
+  const [workspaces, setWorkspaces] = useState<
+    { id: string; name: string; role: string }[]
+  >([]);
+  const [currentWorkspaceId, setCurrentWorkspaceId] = useState<string | null>(null);
+  const [workspaceLoading, setWorkspaceLoading] = useState(false);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    let active = true;
+    setWorkspaceLoading(true);
+    fetch("/api/workspaces/current")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!active || !data) return;
+        setWorkspaces(data.workspaces ?? []);
+        setCurrentWorkspaceId(data.currentWorkspaceId ?? null);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setWorkspaceLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [session?.user]);
   return (
     <aside className="sticky top-0 hidden min-h-screen w-60 flex-col border border-slate-200 bg-white p-4 shadow-sm lg:flex">
       <div className="border-b border-slate-200 pb-4">
@@ -46,6 +73,52 @@ export function Sidebar({ splitThreshold }: SidebarProps) {
           priority
         />
       </div>
+      {session?.user ? (
+        <div className="mt-4 border-b border-slate-200 pb-4">
+          <div className="mb-2 text-[11px] uppercase tracking-[0.22em] text-slate-500">
+            Workspace
+          </div>
+          {workspaceLoading ? (
+            <div className="text-xs text-slate-500">読み込み中...</div>
+          ) : workspaces.length > 0 ? (
+            <div className="grid gap-2">
+              <select
+                value={currentWorkspaceId ?? ""}
+                onChange={async (event) => {
+                  const nextId = event.target.value;
+                  setCurrentWorkspaceId(nextId);
+                  await fetch("/api/workspaces/current", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ workspaceId: nextId }),
+                  });
+                  router.refresh();
+                }}
+                className="border border-slate-200 bg-white px-2 py-2 text-sm text-slate-700"
+              >
+                {workspaces.map((workspace) => (
+                  <option key={workspace.id} value={workspace.id}>
+                    {workspace.name}
+                  </option>
+                ))}
+              </select>
+              <Link
+                href="/workspaces"
+                className="border border-slate-200 bg-slate-50 px-3 py-2 text-center text-[11px] text-slate-600 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
+              >
+                管理
+              </Link>
+            </div>
+          ) : (
+            <Link
+              href="/workspaces"
+              className="border border-slate-200 bg-white px-3 py-2 text-center text-xs text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
+            >
+              ワークスペースを作成
+            </Link>
+          )}
+        </div>
+      ) : null}
       <nav className="mt-4 flex flex-col gap-1">
         {navItems
           .filter((item) => !item.adminOnly || session?.user?.role === "ADMIN")

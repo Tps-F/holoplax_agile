@@ -82,7 +82,14 @@ export default function WorkspacesPage() {
               {workspaces.map((workspace) => (
                 <button
                   key={workspace.id}
-                  onClick={() => setSelectedId(workspace.id)}
+                  onClick={async () => {
+                    setSelectedId(workspace.id);
+                    await fetch("/api/workspaces/current", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ workspaceId: workspace.id }),
+                    });
+                  }}
                   className={`border px-3 py-2 text-left text-sm transition ${
                     selectedId === workspace.id
                       ? "border-[#2323eb]/40 bg-[#2323eb]/10 text-[#2323eb]"
@@ -114,8 +121,17 @@ export default function WorkspacesPage() {
                       body: JSON.stringify({ name: newName }),
                     });
                     if (res.ok) {
+                      const data = await res.json();
                       setNewName("");
                       fetchWorkspaces();
+                      if (data?.workspace?.id) {
+                        setSelectedId(data.workspace.id);
+                        await fetch("/api/workspaces/current", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ workspaceId: data.workspace.id }),
+                        });
+                      }
                     }
                   }}
                   className="border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"

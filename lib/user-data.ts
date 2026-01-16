@@ -1,9 +1,13 @@
 import prisma from "./prisma";
 
-export async function adoptOrphanTasks(userId: string) {
+export async function adoptOrphanTasks(userId: string, workspaceId: string) {
   await prisma.task.updateMany({
     where: { userId: null },
-    data: { userId },
+    data: { userId, workspaceId },
+  });
+  await prisma.task.updateMany({
+    where: { userId, workspaceId: null },
+    data: { workspaceId },
   });
 }
 
