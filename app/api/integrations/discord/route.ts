@@ -1,26 +1,14 @@
-import { badRequest, ok, unauthorized } from "../../../../lib/api-response";
+import { badRequest, ok } from "../../../../lib/api-response";
 import { applyAutomationForTask } from "../../../../lib/automation";
 import { PENDING_APPROVAL_TAG } from "../../../../lib/automation-constants";
+import { validateSharedToken } from "../../../../lib/integrations/auth";
 import prisma from "../../../../lib/prisma";
 import { TASK_STATUS } from "../../../../lib/types";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
-const headerToken = (request: Request) =>
-  request.headers.get("x-integration-token") ??
-  request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
-  null;
-
-const getEnv = (key: string) => process.env[key] ?? "";
-
 export async function POST(request: Request) {
-  const sharedToken = getEnv("DISCORD_INTEGRATION_TOKEN");
-  if (!sharedToken) {
-    return unauthorized();
-  }
-  const received = headerToken(request);
-  if (!received || received !== sharedToken) {
-    return unauthorized();
-  }
+  const authError = validateSharedToken(request, ["DISCORD_INTEGRATION_TOKEN"]);
+  if (authError) return authError;
 
   const body = await request.json().catch(() => ({}));
   const rawTitle = String(body.title ?? body.content ?? "").trim();
@@ -28,8 +16,9 @@ export async function POST(request: Request) {
   const points = Number(body.points ?? 3);
   const urgency = String(body.urgency ?? "中");
   const risk = String(body.risk ?? "中");
-  const userId = getEnv("DISCORD_USER_ID") || getEnv("INTEGRATION_USER_ID");
-  const workspaceEnv = getEnv("DISCORD_WORKSPACE_ID");
+  const userId =
+    process.env.DISCORD_USER_ID ?? process.env.INTEGRATION_USER_ID ?? "";
+  const workspaceEnv = process.env.DISCORD_WORKSPACE_ID ?? "";
 
   if (!rawTitle) {
     return badRequest("title is required");

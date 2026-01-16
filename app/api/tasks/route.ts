@@ -10,6 +10,7 @@ import { badPoints } from "../../../lib/points";
 import { logAudit } from "../../../lib/audit";
 import prisma from "../../../lib/prisma";
 import { TASK_STATUS } from "../../../lib/types";
+import { mapTaskWithDependencies } from "../../../lib/mappers/task";
 import { resolveWorkspaceId } from "../../../lib/workspace-context";
 
 export async function GET() {
@@ -32,18 +33,7 @@ export async function GET() {
       },
     });
     return ok({
-      tasks: tasks.map((task) => ({
-        ...task,
-        dependencyIds: task.dependencies.map((dep) => dep.dependsOnId),
-        dependencies: task.dependencies
-          .map((dep) => dep.dependsOn)
-          .filter(
-            (
-              dep,
-            ): dep is { id: string; title: string; status: keyof typeof TASK_STATUS } =>
-              Boolean(dep),
-          ),
-      })),
+      tasks: tasks.map(mapTaskWithDependencies),
     });
   } catch (error) {
     const authError = handleAuthError(error);

@@ -10,6 +10,9 @@ export const badRequest = (message: string) =>
 export const unauthorized = () =>
   NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+export const unauthorizedWithMessage = (message: string) =>
+  NextResponse.json({ error: message }, { status: 401 });
+
 export const forbidden = () =>
   NextResponse.json({ error: "forbidden" }, { status: 403 });
 

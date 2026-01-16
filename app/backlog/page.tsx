@@ -1,9 +1,10 @@
 "use client";
 
-import { Sparkles, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Sparkles, Pencil, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Sidebar } from "../components/sidebar";
 import { useWorkspaceId } from "../components/use-workspace-id";
+import { LoadingButton } from "../components/loading-button";
 import { TASK_STATUS, TaskDTO } from "../../lib/types";
 import {
   DELEGATE_TAG,
@@ -533,18 +534,13 @@ export default function BacklogPage() {
                         目標リストに戻す
                       </button>
                     )}
-                    <button
+                    <LoadingButton
                       className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
                       onClick={() => getSuggestion(item.title, item.description, item.id)}
-                      disabled={suggestLoadingId === item.id}
+                      loading={suggestLoadingId === item.id}
                     >
-                      <span className="inline-flex items-center gap-1">
-                        {suggestLoadingId === item.id ? (
-                          <Loader2 size={14} className="animate-spin text-[#2323eb]" />
-                        ) : null}
-                        AI 提案を見る
-                      </span>
-                    </button>
+                      AI 提案を見る
+                    </LoadingButton>
                     <button
                       className="border border-slate-200 bg-white p-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
                       onClick={() => openEdit(item)}
@@ -560,18 +556,13 @@ export default function BacklogPage() {
                       <Trash2 size={14} />
                     </button>
                     {item.points > splitThreshold ? (
-                      <button
+                      <LoadingButton
                         className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
                         onClick={() => requestSplit(item)}
-                        disabled={splitLoadingId === item.id}
+                        loading={splitLoadingId === item.id}
                       >
-                        <span className="inline-flex items-center gap-1">
-                          {splitLoadingId === item.id ? (
-                            <Loader2 size={14} className="animate-spin text-[#2323eb]" />
-                          ) : null}
-                          分解提案
-                        </span>
-                      </button>
+                        分解提案
+                      </LoadingButton>
                     ) : null}
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
@@ -820,23 +811,22 @@ export default function BacklogPage() {
                   >
                     <span className="inline-flex items-center gap-2">
                       {addLoading ? (
-                        <Loader2 size={16} className="animate-spin text-white" />
+                        <span className="inline-flex items-center">
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
+                        </span>
                       ) : null}
                       追加する
                     </span>
                   </button>
-                  <button
+                  <LoadingButton
                     onClick={estimateScore}
                     disabled={scoreLoading}
+                    loading={scoreLoading}
                     className="inline-flex items-center gap-2 border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb] disabled:opacity-60"
                   >
-                    {scoreLoading ? (
-                      <Loader2 size={16} className="animate-spin text-[#2323eb]" />
-                    ) : (
-                      <Sparkles size={16} />
-                    )}
+                    {!scoreLoading ? <Sparkles size={16} /> : null}
                     AIでスコア推定
-                  </button>
+                  </LoadingButton>
                 </div>
                 {scoreHint ? (
                   <div className="border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">

@@ -1,29 +1,19 @@
-import crypto from "crypto";
 import {
   badRequest,
   ok,
   unauthorized,
+  unauthorizedWithMessage,
 } from "../../../../lib/api-response";
 import { applyAutomationForTask } from "../../../../lib/automation";
+import { verifySlackSignature } from "../../../../lib/integrations/auth";
 import prisma from "../../../../lib/prisma";
 import { TASK_STATUS } from "../../../../lib/types";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
-const getEnv = (key: string) => process.env[key] ?? "";
-
-const verifySlackSignature = (secret: string, body: string, timestamp: string, signature: string) => {
-  const base = `v0:${timestamp}:${body}`;
-  const hmac = crypto.createHmac("sha256", secret);
-  hmac.update(base);
-  const expected = `v0=${hmac.digest("hex")}`;
-  // constant-time compare
-  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(signature));
-};
-
 export async function POST(request: Request) {
-  const signingSecret = getEnv("SLACK_SIGNING_SECRET");
+  const signingSecret = process.env.SLACK_SIGNING_SECRET;
   if (!signingSecret) {
-    return unauthorized();
+    return unauthorizedWithMessage("SLACK_SIGNING_SECRET not configured");
   }
 
   const raw = await request.text();
@@ -31,11 +21,11 @@ export async function POST(request: Request) {
   const signature = request.headers.get("x-slack-signature") ?? "";
 
   if (!timestamp || !signature) {
-    return unauthorized();
+    return unauthorizedWithMessage("missing slack headers");
   }
   const now = Math.floor(Date.now() / 1000);
   if (Math.abs(now - Number(timestamp)) > 60 * 5) {
-    return unauthorized();
+    return unauthorizedWithMessage("request is too old");
   }
   try {
     const okSig = verifySlackSignature(signingSecret, raw, timestamp, signature);
