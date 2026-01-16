@@ -117,6 +117,7 @@ resource "aws_instance" "app" {
   vpc_security_group_ids = [aws_security_group.app.id]
   key_name      = var.key_name
   user_data     = var.user_data
+  user_data_replace_on_change = true
 
   iam_instance_profile = aws_iam_instance_profile.ec2.name
 

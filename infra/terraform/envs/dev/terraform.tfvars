@@ -11,3 +11,4 @@ db_username        = "holoplax"
 db_multi_az        = false
 bucket_name        = "holoplax-dev-avatars-unique"
 public_read        = true
+app_domain         = "holoplax.raim-tech.com"

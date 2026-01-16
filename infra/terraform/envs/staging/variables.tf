@@ -62,6 +62,19 @@ variable "user_data" {
 }
 
 variable "db_password_override" {
-  type    = string
-  default = ""
+  type      = string
+  default   = ""
+  sensitive = true
+}
+
+variable "app_domain" {
+  type        = string
+  default     = ""
+  description = "Custom domain for the application"
+}
+
+variable "deploy_version" {
+  type        = string
+  default     = ""
+  description = "Deployment version (commit hash) to trigger EC2 recreation"
 }

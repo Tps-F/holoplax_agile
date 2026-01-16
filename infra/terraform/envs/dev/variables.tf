@@ -65,3 +65,9 @@ variable "db_password_override" {
   type    = string
   default = ""
 }
+
+variable "app_domain" {
+  type        = string
+  default     = ""
+  description = "Custom domain for the application (e.g., holoplax.raim-tech.com)"
+}

@@ -1,6 +1,13 @@
 terraform {
   required_version = ">= 1.5.0"
 
+  backend "s3" {
+    bucket  = "holoplax-terraform-state"
+    key     = "prod/terraform.tfstate"
+    region  = "ap-northeast-3"
+    encrypt = true
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
@@ -24,6 +31,14 @@ data "aws_availability_zones" "available" {
 locals {
   azs         = slice(data.aws_availability_zones.available.names, 0, 2)
   db_password = var.db_password_override != "" ? var.db_password_override : random_password.db.result
+  user_data = templatefile("${path.module}/user_data.sh.tpl", {
+    region             = var.region
+    s3_bucket          = var.bucket_name
+    db_secret_name     = "${var.name_prefix}-db-secret"
+    openai_secret_name = "${var.name_prefix}-openai-secret"
+    nextauth_url       = var.app_domain != "" ? "https://${var.app_domain}" : "http://${module.alb.dns_name}"
+    deploy_version     = var.deploy_version
+  })
 }
 
 resource "random_password" "db" {
@@ -67,10 +82,12 @@ module "ec2" {
   app_port               = var.app_port
   instance_type          = var.instance_type
   key_name               = var.ssh_key_name
-  user_data              = var.user_data
+  user_data              = local.user_data
   alb_security_group_id  = module.alb.security_group_id
   target_group_arn       = module.alb.target_group_arn
+  enable_alb             = true
   s3_bucket_arn          = module.s3.bucket_arn
+  enable_s3_access       = true
   secrets_arns           = [aws_secretsmanager_secret.db.arn, aws_secretsmanager_secret.openai.arn]
 }
 

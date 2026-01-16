@@ -29,7 +29,7 @@ locals {
     s3_bucket         = var.bucket_name
     db_secret_name    = "${var.name_prefix}-db-secret"
     openai_secret_name = "${var.name_prefix}-openai-secret"
-    nextauth_url      = "http://${module.alb.dns_name}"
+    nextauth_url      = var.app_domain != "" ? "https://${var.app_domain}" : "http://${module.alb.dns_name}"
   })
 }
 
