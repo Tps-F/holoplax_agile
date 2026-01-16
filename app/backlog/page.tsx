@@ -59,6 +59,7 @@ export default function BacklogPage() {
     tags: "",
     dependencyIds: [] as string[],
   });
+  const [addLoading, setAddLoading] = useState(false);
   const [suggestLoadingId, setSuggestLoadingId] = useState<string | null>(null);
   const [splitLoadingId, setSplitLoadingId] = useState<string | null>(null);
   const [scoreLoading, setScoreLoading] = useState(false);
@@ -98,40 +99,49 @@ export default function BacklogPage() {
     if (!form.title.trim()) return;
     const statusValue =
       view === "sprint" ? TASK_STATUS.SPRINT : TASK_STATUS.BACKLOG;
-    const res = await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: form.title.trim(),
-        description: form.description.trim(),
-        points: Number(form.points),
-        urgency: form.urgency,
-        risk: form.risk,
-        status: statusValue,
-        dueDate: form.dueDate || null,
-        assigneeId: form.assigneeId || null,
-        tags: form.tags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-        dependencyIds: form.dependencyIds,
-      }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setItems((prev) => [...prev, data.task]);
-      setForm({
-        title: "",
-        description: "",
-        points: 3,
-        urgency: "中",
-        risk: "中",
-        dueDate: "",
-        assigneeId: "",
-        tags: "",
-        dependencyIds: [],
+    setAddLoading(true);
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: form.title.trim(),
+          description: form.description.trim(),
+          points: Number(form.points),
+          urgency: form.urgency,
+          risk: form.risk,
+          status: statusValue,
+          dueDate: form.dueDate || null,
+          assigneeId: form.assigneeId || null,
+          tags: form.tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean),
+          dependencyIds: form.dependencyIds,
+        }),
       });
-      setModalOpen(false);
+      if (res.ok) {
+        const data = await res.json();
+        setItems((prev) => [...prev, data.task]);
+        if (data.task.points > splitThreshold && data.task.status === TASK_STATUS.BACKLOG) {
+          // しきい値超過の場合は即座に分解案を取得して表示
+          void requestSplit(data.task);
+        }
+        setForm({
+          title: "",
+          description: "",
+          points: 3,
+          urgency: "中",
+          risk: "中",
+          dueDate: "",
+          assigneeId: "",
+          tags: "",
+          dependencyIds: [],
+        });
+        setModalOpen(false);
+      }
+    } finally {
+      setAddLoading(false);
     }
   };
 
@@ -801,9 +811,15 @@ export default function BacklogPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={addItem}
-                    className="bg-[#2323eb] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[#2323eb]/30"
+                    disabled={addLoading}
+                    className="bg-[#2323eb] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[#2323eb]/30 disabled:opacity-60"
                   >
-                    追加する
+                    <span className="inline-flex items-center gap-2">
+                      {addLoading ? (
+                        <Loader2 size={16} className="animate-spin text-white" />
+                      ) : null}
+                      追加する
+                    </span>
                   </button>
                   <button
                     onClick={estimateScore}

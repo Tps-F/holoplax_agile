@@ -12,7 +12,8 @@ import {
 const scoreFromPoints = (points: number) =>
   Math.min(100, Math.max(0, Math.round(points * 9)));
 
-const requireApproval = process.env.AUTOMATION_REQUIRE_APPROVAL === "true";
+// 高スコアはデフォルトで承認必須にする。明示的に false を指定した場合のみ自動分解を許可。
+const requireApproval = process.env.AUTOMATION_REQUIRE_APPROVAL !== "false";
 
 export async function applyAutomationForTask(params: {
   userId: string;
