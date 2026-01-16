@@ -6,13 +6,37 @@ import { Sidebar } from "../components/sidebar";
 import { useWorkspaceId } from "../components/use-workspace-id";
 import { SprintDTO, TASK_STATUS, TaskDTO } from "../../lib/types";
 
+type MemberRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  role: string;
+};
+
 export default function SprintPage() {
   const capacity = 24;
   const { workspaceId, ready } = useWorkspaceId();
   const [items, setItems] = useState<TaskDTO[]>([]);
+  const [members, setMembers] = useState<MemberRow[]>([]);
   const [sprint, setSprint] = useState<SprintDTO | null>(null);
+  const [sprintHistory, setSprintHistory] = useState<
+    (SprintDTO & { committedPoints?: number; completedPoints?: number })[]
+  >([]);
   const [sprintLoading, setSprintLoading] = useState(false);
-  const [newItem, setNewItem] = useState({ title: "", description: "", points: 1 });
+  const [sprintForm, setSprintForm] = useState({
+    name: "",
+    capacityPoints: 24,
+    startedAt: "",
+    plannedEndAt: "",
+  });
+  const [newItem, setNewItem] = useState({
+    title: "",
+    description: "",
+    points: 1,
+    dueDate: "",
+    assigneeId: "",
+    tags: "",
+  });
   const [editItem, setEditItem] = useState<TaskDTO | null>(null);
   const [editForm, setEditForm] = useState({
     title: "",
@@ -20,6 +44,9 @@ export default function SprintPage() {
     points: 1,
     urgency: "中",
     risk: "中",
+    dueDate: "",
+    assigneeId: "",
+    tags: "",
   });
 
   const fetchTasks = useCallback(async () => {
@@ -43,13 +70,55 @@ export default function SprintPage() {
     if (!res.ok) return;
     const data = await res.json();
     setSprint(data.sprint ?? null);
+    if (data.sprint) {
+      setSprintForm({
+        name: data.sprint.name ?? "",
+        capacityPoints: data.sprint.capacityPoints ?? capacity,
+        startedAt: data.sprint.startedAt
+          ? new Date(data.sprint.startedAt).toISOString().slice(0, 10)
+          : "",
+        plannedEndAt: data.sprint.plannedEndAt
+          ? new Date(data.sprint.plannedEndAt).toISOString().slice(0, 10)
+          : "",
+      });
+    } else {
+      setSprintForm((prev) => ({
+        ...prev,
+        capacityPoints: capacity,
+      }));
+    }
+  }, [ready, workspaceId]);
+
+  const fetchSprintHistory = useCallback(async () => {
+    if (!ready) return;
+    if (!workspaceId) {
+      setSprintHistory([]);
+      return;
+    }
+    const res = await fetch("/api/sprints");
+    if (!res.ok) return;
+    const data = await res.json();
+    setSprintHistory(data.sprints ?? []);
+  }, [ready, workspaceId]);
+
+  const fetchMembers = useCallback(async () => {
+    if (!ready || !workspaceId) {
+      setMembers([]);
+      return;
+    }
+    const res = await fetch(`/api/workspaces/${workspaceId}/members`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setMembers(data.members ?? []);
   }, [ready, workspaceId]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchTasks();
     void fetchSprint();
-  }, [fetchTasks, fetchSprint]);
+    void fetchSprintHistory();
+    void fetchMembers();
+  }, [fetchTasks, fetchSprint, fetchSprintHistory, fetchMembers]);
 
   const used = useMemo(
     () => items.filter((i) => i.status !== TASK_STATUS.DONE).reduce((sum, i) => sum + i.points, 0),
@@ -71,9 +140,22 @@ export default function SprintPage() {
         urgency: "中",
         risk: "中",
         status: TASK_STATUS.SPRINT,
+        dueDate: newItem.dueDate || null,
+        assigneeId: newItem.assigneeId || null,
+        tags: newItem.tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
       }),
     });
-    setNewItem({ title: "", description: "", points: 1 });
+    setNewItem({
+      title: "",
+      description: "",
+      points: 1,
+      dueDate: "",
+      assigneeId: "",
+      tags: "",
+    });
     fetchTasks();
   };
 
@@ -83,11 +165,16 @@ export default function SprintPage() {
       const res = await fetch("/api/sprints/current", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ capacityPoints: capacity }),
+        body: JSON.stringify({
+          name: sprintForm.name.trim() || undefined,
+          capacityPoints: sprintForm.capacityPoints,
+          plannedEndAt: sprintForm.plannedEndAt || null,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
         setSprint(data.sprint ?? null);
+        fetchSprintHistory();
       }
     } finally {
       setSprintLoading(false);
@@ -103,6 +190,31 @@ export default function SprintPage() {
         setSprint(data.sprint ?? null);
       }
       fetchTasks();
+      fetchSprintHistory();
+    } finally {
+      setSprintLoading(false);
+    }
+  };
+
+  const updateSprint = async () => {
+    if (!sprint) return;
+    setSprintLoading(true);
+    try {
+      const res = await fetch(`/api/sprints/${sprint.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: sprintForm.name,
+          capacityPoints: sprintForm.capacityPoints,
+          startedAt: sprintForm.startedAt || null,
+          plannedEndAt: sprintForm.plannedEndAt || null,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSprint(data.sprint ?? null);
+        fetchSprintHistory();
+      }
     } finally {
       setSprintLoading(false);
     }
@@ -131,6 +243,9 @@ export default function SprintPage() {
       points: item.points,
       urgency: item.urgency,
       risk: item.risk,
+      dueDate: item.dueDate ? String(item.dueDate).slice(0, 10) : "",
+      assigneeId: item.assigneeId ?? "",
+      tags: item.tags?.join(", ") ?? "",
     });
   };
 
@@ -145,6 +260,12 @@ export default function SprintPage() {
         points: Number(editForm.points),
         urgency: editForm.urgency,
         risk: editForm.risk,
+        dueDate: editForm.dueDate || null,
+        assigneeId: editForm.assigneeId || null,
+        tags: editForm.tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
       }),
     });
     setEditItem(null);
@@ -207,6 +328,72 @@ export default function SprintPage() {
         </header>
 
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-900">スプリント設定</h3>
+            {sprint ? (
+              <button
+                onClick={updateSprint}
+                disabled={sprintLoading}
+                className="border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb] disabled:opacity-60"
+              >
+                変更を保存
+              </button>
+            ) : null}
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-4">
+            <label className="grid gap-1 text-xs text-slate-500">
+              名前
+              <input
+                value={sprintForm.name}
+                onChange={(e) => setSprintForm((p) => ({ ...p, name: e.target.value }))}
+                className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                placeholder="Sprint-Launch"
+              />
+            </label>
+            <label className="grid gap-1 text-xs text-slate-500">
+              キャパ
+              <input
+                type="number"
+                min={1}
+                value={sprintForm.capacityPoints}
+                onChange={(e) =>
+                  setSprintForm((p) => ({
+                    ...p,
+                    capacityPoints: Number(e.target.value) || 0,
+                  }))
+                }
+                className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+              />
+            </label>
+            <label className="grid gap-1 text-xs text-slate-500">
+              開始日
+              <input
+                type="date"
+                value={sprintForm.startedAt}
+                onChange={(e) => setSprintForm((p) => ({ ...p, startedAt: e.target.value }))}
+                className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+              />
+            </label>
+            <label className="grid gap-1 text-xs text-slate-500">
+              予定終了日
+              <input
+                type="date"
+                value={sprintForm.plannedEndAt}
+                onChange={(e) =>
+                  setSprintForm((p) => ({ ...p, plannedEndAt: e.target.value }))
+                }
+                className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+              />
+            </label>
+          </div>
+          {!sprint ? (
+            <div className="mt-3 text-xs text-slate-500">
+              開始ボタンを押すとこの設定でスプリントが作成されます。
+            </div>
+          ) : null}
+        </section>
+
+        <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="grid gap-3">
             <input
               value={newItem.title}
@@ -235,13 +422,48 @@ export default function SprintPage() {
                   className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 />
               </label>
-              <button
-                onClick={addItem}
-                disabled={newItem.points > remaining}
-                className="border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb] disabled:opacity-50"
-              >
-                追加
-              </button>
+                <button
+                  onClick={addItem}
+                  disabled={newItem.points > remaining}
+                  className="border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb] disabled:opacity-50"
+                >
+                  追加
+                </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="grid gap-1 text-xs text-slate-500">
+                期限
+                <input
+                  type="date"
+                  value={newItem.dueDate}
+                  onChange={(e) => setNewItem((p) => ({ ...p, dueDate: e.target.value }))}
+                  className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                />
+              </label>
+              <label className="grid gap-1 text-xs text-slate-500">
+                担当
+                <select
+                  value={newItem.assigneeId}
+                  onChange={(e) => setNewItem((p) => ({ ...p, assigneeId: e.target.value }))}
+                  className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                >
+                  <option value="">未設定</option>
+                  {members.map((member) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name ?? member.email ?? member.id}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 text-xs text-slate-500">
+                タグ
+                <input
+                  value={newItem.tags}
+                  onChange={(e) => setNewItem((p) => ({ ...p, tags: e.target.value }))}
+                  placeholder="ui, sprint"
+                  className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                />
+              </label>
             </div>
           </div>
         </section>
@@ -261,14 +483,24 @@ export default function SprintPage() {
                       <p className="text-xs text-slate-600">{item.description}</p>
                     ) : null}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700">
-                      {item.points} pt
+                <div className="flex items-center gap-2">
+                  <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700">
+                    {item.points} pt
+                  </span>
+                  {item.dueDate ? (
+                    <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600">
+                      期限 {new Date(item.dueDate).toLocaleDateString()}
                     </span>
-                    <button
-                      onClick={() => markDone(item.id)}
-                      className="border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                    >
+                  ) : null}
+                  {item.assigneeId ? (
+                    <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600">
+                      {members.find((member) => member.id === item.assigneeId)?.name ?? "担当"}
+                    </span>
+                  ) : null}
+                  <button
+                    onClick={() => markDone(item.id)}
+                    className="border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
+                  >
                       完了
                     </button>
                     <button
@@ -316,6 +548,11 @@ export default function SprintPage() {
                     <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500">
                       {item.points} pt
                     </span>
+                    {item.dueDate ? (
+                      <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500">
+                        期限 {new Date(item.dueDate).toLocaleDateString()}
+                      </span>
+                    ) : null}
                     <button
                       onClick={() => openEdit(item)}
                       className="border border-slate-200 bg-white p-1 text-slate-600 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
@@ -333,6 +570,40 @@ export default function SprintPage() {
                   </div>
                 </div>
               ))}
+          </div>
+        </section>
+
+        <section className="border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-slate-900">スプリント履歴</h3>
+            <button
+              onClick={fetchSprintHistory}
+              className="border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
+            >
+              更新
+            </button>
+          </div>
+          <div className="mt-4 grid gap-2 text-sm">
+            {sprintHistory.length ? (
+              sprintHistory.map((item) => (
+                <div
+                  key={item.id}
+                  className="grid grid-cols-[1.2fr_0.6fr_0.6fr_0.6fr_0.8fr] items-center gap-3 border border-slate-200 px-3 py-2 text-xs text-slate-600"
+                >
+                  <span className="text-slate-800">{item.name}</span>
+                  <span>{item.status}</span>
+                  <span>{item.capacityPoints} pt</span>
+                  <span>
+                    {(item as { completedPoints?: number }).completedPoints ?? 0} pt
+                  </span>
+                  <span className="text-[11px] text-slate-500">
+                    {item.startedAt ? new Date(item.startedAt).toLocaleDateString() : "-"}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div className="text-xs text-slate-500">履歴がまだありません。</div>
+            )}
           </div>
         </section>
 
@@ -399,6 +670,43 @@ export default function SprintPage() {
                         <option key={v}>{v}</option>
                       ))}
                     </select>
+                  </label>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    期限
+                    <input
+                      type="date"
+                      value={editForm.dueDate}
+                      onChange={(e) => setEditForm((p) => ({ ...p, dueDate: e.target.value }))}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    担当
+                    <select
+                      value={editForm.assigneeId}
+                      onChange={(e) =>
+                        setEditForm((p) => ({ ...p, assigneeId: e.target.value }))
+                      }
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    >
+                      <option value="">未設定</option>
+                      {members.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name ?? member.email ?? member.id}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    タグ
+                    <input
+                      value={editForm.tags}
+                      onChange={(e) => setEditForm((p) => ({ ...p, tags: e.target.value }))}
+                      placeholder="ui, sprint"
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    />
                   </label>
                 </div>
                 <button

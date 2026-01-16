@@ -6,6 +6,7 @@ import {
   serverError,
 } from "../../../lib/api-response";
 import { applyAutomationForTask } from "../../../lib/automation";
+import { logAudit } from "../../../lib/audit";
 import prisma from "../../../lib/prisma";
 import { TASK_STATUS } from "../../../lib/types";
 import { resolveWorkspaceId } from "../../../lib/workspace-context";
@@ -20,8 +21,16 @@ export async function GET() {
     const tasks = await prisma.task.findMany({
       where: { workspaceId },
       orderBy: { createdAt: "desc" },
+      include: {
+        dependencies: { select: { dependsOnId: true } },
+      },
     });
-    return ok({ tasks });
+    return ok({
+      tasks: tasks.map((task) => ({
+        ...task,
+        dependencyIds: task.dependencies.map((dep) => dep.dependsOnId),
+      })),
+    });
   } catch (error) {
     const authError = handleAuthError(error);
     if (authError) return authError;
@@ -34,7 +43,18 @@ export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth();
     const body = await request.json();
-    const { title, description, points, urgency, risk, status } = body;
+    const {
+      title,
+      description,
+      points,
+      urgency,
+      risk,
+      status,
+      dueDate,
+      assigneeId,
+      tags,
+      dependencyIds,
+    } = body;
     if (!title || points === undefined || points === null) {
       return badRequest("title and points are required");
     }
@@ -42,6 +62,25 @@ export async function POST(request: Request) {
     if (!workspaceId) {
       return badRequest("workspace is required");
     }
+    let safeAssigneeId: string | null = assigneeId ?? null;
+    if (safeAssigneeId) {
+      const member = await prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId: safeAssigneeId } },
+        select: { userId: true },
+      });
+      if (!member) {
+        safeAssigneeId = null;
+      }
+    }
+    const dependencyList = Array.isArray(dependencyIds)
+      ? dependencyIds.map((id: string) => String(id))
+      : [];
+    const allowedDependencies = dependencyList.length
+      ? await prisma.task.findMany({
+          where: { id: { in: dependencyList }, workspaceId },
+          select: { id: true },
+        })
+      : [];
     const statusValue = Object.values(TASK_STATUS).includes(status)
       ? status
       : TASK_STATUS.BACKLOG;
@@ -61,10 +100,31 @@ export async function POST(request: Request) {
         urgency: urgency ?? "中",
         risk: risk ?? "中",
         status: statusValue,
-        sprintId: activeSprint?.id ?? null,
+        dueDate: dueDate ? new Date(dueDate) : null,
+        tags: Array.isArray(tags) ? tags.map((tag: string) => String(tag)) : [],
         userId,
         workspaceId,
+        sprint: activeSprint ? { connect: { id: activeSprint.id } } : undefined,
+        assignee: safeAssigneeId ? { connect: { id: safeAssigneeId } } : undefined,
       },
+    });
+    if (allowedDependencies.length > 0) {
+      await prisma.taskDependency.createMany({
+        data: dependencyList
+          .filter((id: string) => id && id !== task.id)
+          .filter((id: string) => allowedDependencies.some((allowed) => allowed.id === id))
+          .map((id: string) => ({
+            taskId: task.id,
+            dependsOnId: id,
+          })),
+        skipDuplicates: true,
+      });
+    }
+    await logAudit({
+      actorId: userId,
+      action: "TASK_CREATE",
+      targetWorkspaceId: workspaceId,
+      metadata: { taskId: task.id, status: task.status },
     });
     await applyAutomationForTask({
       userId,

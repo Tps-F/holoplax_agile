@@ -5,6 +5,13 @@ import { Sidebar } from "../components/sidebar";
 import { useWorkspaceId } from "../components/use-workspace-id";
 import { TASK_STATUS, TaskDTO, TaskStatus } from "../../lib/types";
 
+type MemberRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  role: string;
+};
+
 type Column = {
   key: TaskStatus;
   label: string;
@@ -20,6 +27,7 @@ const columns: Column[] = [
 export default function KanbanPage() {
   const { workspaceId, ready } = useWorkspaceId();
   const [items, setItems] = useState<TaskDTO[]>([]);
+  const [members, setMembers] = useState<MemberRow[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverColumn, setHoverColumn] = useState<TaskStatus | null>(null);
 
@@ -34,10 +42,22 @@ export default function KanbanPage() {
     setItems(data.tasks ?? []);
   }, [ready, workspaceId]);
 
+  const fetchMembers = useCallback(async () => {
+    if (!ready || !workspaceId) {
+      setMembers([]);
+      return;
+    }
+    const res = await fetch(`/api/workspaces/${workspaceId}/members`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setMembers(data.members ?? []);
+  }, [ready, workspaceId]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchTasks();
-  }, [fetchTasks]);
+    void fetchMembers();
+  }, [fetchTasks, fetchMembers]);
 
   const grouped = useMemo(() => {
     const map: Record<TaskStatus, TaskDTO[]> = {
@@ -133,6 +153,23 @@ export default function KanbanPage() {
                       <span className="border border-slate-200 bg-white px-2 py-1">
                         リスク: {item.risk}
                       </span>
+                      {item.dueDate ? (
+                        <span className="border border-slate-200 bg-white px-2 py-1">
+                          期限: {new Date(item.dueDate).toLocaleDateString()}
+                        </span>
+                      ) : null}
+                      {item.assigneeId ? (
+                        <span className="border border-slate-200 bg-white px-2 py-1">
+                          担当:{" "}
+                          {members.find((member) => member.id === item.assigneeId)?.name ??
+                            "未設定"}
+                        </span>
+                      ) : null}
+                      {item.tags && item.tags.length > 0 ? (
+                        <span className="border border-slate-200 bg-white px-2 py-1">
+                          #{item.tags.join(" #")}
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 ))}

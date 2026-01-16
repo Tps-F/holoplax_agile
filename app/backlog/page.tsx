@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { Sparkles, Pencil, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Sidebar } from "../components/sidebar";
 import { useWorkspaceId } from "../components/use-workspace-id";
@@ -14,16 +14,29 @@ type SplitSuggestion = {
   detail: string;
 };
 
+type MemberRow = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  role: string;
+};
+
 export default function BacklogPage() {
   const splitThreshold = 8;
   const { workspaceId, ready } = useWorkspaceId();
   const [items, setItems] = useState<TaskDTO[]>([]);
+  const [view, setView] = useState<"product" | "sprint">("product");
+  const [members, setMembers] = useState<MemberRow[]>([]);
   const [form, setForm] = useState({
     title: "",
     description: "",
     points: 3,
     urgency: "中",
     risk: "中",
+    dueDate: "",
+    assigneeId: "",
+    tags: "",
+    dependencyIds: [] as string[],
   });
   const [modalOpen, setModalOpen] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
@@ -36,6 +49,10 @@ export default function BacklogPage() {
     points: 3,
     urgency: "中",
     risk: "中",
+    dueDate: "",
+    assigneeId: "",
+    tags: "",
+    dependencyIds: [] as string[],
   });
 
   const fetchTasks = useCallback(async () => {
@@ -49,13 +66,27 @@ export default function BacklogPage() {
     setItems(data.tasks ?? []);
   }, [ready, workspaceId]);
 
+  const fetchMembers = useCallback(async () => {
+    if (!ready || !workspaceId) {
+      setMembers([]);
+      return;
+    }
+    const res = await fetch(`/api/workspaces/${workspaceId}/members`);
+    if (!res.ok) return;
+    const data = await res.json();
+    setMembers(data.members ?? []);
+  }, [ready, workspaceId]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchTasks();
-  }, [fetchTasks]);
+    void fetchMembers();
+  }, [fetchTasks, fetchMembers]);
 
   const addItem = async () => {
     if (!form.title.trim()) return;
+    const statusValue =
+      view === "sprint" ? TASK_STATUS.SPRINT : TASK_STATUS.BACKLOG;
     const res = await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -65,13 +96,30 @@ export default function BacklogPage() {
         points: Number(form.points),
         urgency: form.urgency,
         risk: form.risk,
-        status: TASK_STATUS.BACKLOG,
+        status: statusValue,
+        dueDate: form.dueDate || null,
+        assigneeId: form.assigneeId || null,
+        tags: form.tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+        dependencyIds: form.dependencyIds,
       }),
     });
     if (res.ok) {
       const data = await res.json();
       setItems((prev) => [...prev, data.task]);
-      setForm({ title: "", description: "", points: 3, urgency: "中", risk: "中" });
+      setForm({
+        title: "",
+        description: "",
+        points: 3,
+        urgency: "中",
+        risk: "中",
+        dueDate: "",
+        assigneeId: "",
+        tags: "",
+        dependencyIds: [],
+      });
       setModalOpen(false);
     }
   };
@@ -81,6 +129,15 @@ export default function BacklogPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: TASK_STATUS.SPRINT }),
+    });
+    void fetchTasks();
+  };
+
+  const moveToBacklog = async (id: string) => {
+    await fetch(`/api/tasks/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: TASK_STATUS.BACKLOG }),
     });
     void fetchTasks();
   };
@@ -143,6 +200,8 @@ export default function BacklogPage() {
       delete next[item.id];
       return next;
     });
+    const statusValue =
+      view === "sprint" ? TASK_STATUS.SPRINT : TASK_STATUS.BACKLOG;
     await Promise.all(
       suggestions.map((split) =>
         fetch("/api/tasks", {
@@ -154,7 +213,7 @@ export default function BacklogPage() {
             points: split.points,
             urgency: split.urgency ?? "中",
             risk: split.risk ?? "中",
-            status: TASK_STATUS.BACKLOG,
+            status: statusValue,
           }),
         }),
       ),
@@ -177,6 +236,10 @@ export default function BacklogPage() {
       points: item.points,
       urgency: item.urgency,
       risk: item.risk,
+      dueDate: item.dueDate ? String(item.dueDate).slice(0, 10) : "",
+      assigneeId: item.assigneeId ?? "",
+      tags: item.tags?.join(", ") ?? "",
+      dependencyIds: item.dependencyIds ?? [],
     });
   };
 
@@ -191,6 +254,13 @@ export default function BacklogPage() {
         points: Number(editForm.points),
         urgency: editForm.urgency,
         risk: editForm.risk,
+        dueDate: editForm.dueDate || null,
+        assigneeId: editForm.assigneeId || null,
+        tags: editForm.tags
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+        dependencyIds: editForm.dependencyIds,
       }),
     });
     setEditItem(null);
@@ -213,6 +283,28 @@ export default function BacklogPage() {
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 border border-slate-200 bg-white p-1 text-xs text-slate-700">
+                <button
+                  onClick={() => setView("product")}
+                  className={`px-3 py-1 transition ${
+                    view === "product"
+                      ? "bg-[#2323eb]/10 text-[#2323eb]"
+                      : "text-slate-600 hover:text-[#2323eb]"
+                  }`}
+                >
+                  目標リスト
+                </button>
+                <button
+                  onClick={() => setView("sprint")}
+                  className={`px-3 py-1 transition ${
+                    view === "sprint"
+                      ? "bg-[#2323eb]/10 text-[#2323eb]"
+                      : "text-slate-600 hover:text-[#2323eb]"
+                  }`}
+                >
+                  スプリントバックログ
+                </button>
+              </div>
               <button
                 onClick={() => {
                   fetchTasks();
@@ -229,7 +321,11 @@ export default function BacklogPage() {
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="grid gap-3">
             {items
-              .filter((item) => item.status === TASK_STATUS.BACKLOG)
+              .filter((item) =>
+                view === "product"
+                  ? item.status === TASK_STATUS.BACKLOG
+                  : item.status === TASK_STATUS.SPRINT,
+              )
               .map((item) => (
                 <div
                   key={item.id}
@@ -253,12 +349,21 @@ export default function BacklogPage() {
                     <p className="mt-1 text-sm text-slate-700">{item.description}</p>
                   ) : null}
                   <div className="mt-2 flex items-center gap-2 text-xs">
-                    <button
-                      className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                      onClick={() => moveToSprint(item.id)}
-                    >
-                      スプリントに送る
-                    </button>
+                    {view === "product" ? (
+                      <button
+                        className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
+                        onClick={() => moveToSprint(item.id)}
+                      >
+                        スプリントに送る
+                      </button>
+                    ) : (
+                      <button
+                        className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
+                        onClick={() => moveToBacklog(item.id)}
+                      >
+                        目標リストに戻す
+                      </button>
+                    )}
                     <button
                       className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
                       onClick={() => getSuggestion(item.title, item.description, item.id)}
@@ -286,6 +391,25 @@ export default function BacklogPage() {
                       >
                         分解提案
                       </button>
+                    ) : null}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
+                    {item.dueDate ? (
+                      <span className="border border-slate-200 bg-white px-2 py-1">
+                        期限: {new Date(item.dueDate).toLocaleDateString()}
+                      </span>
+                    ) : null}
+                    {item.assigneeId ? (
+                      <span className="border border-slate-200 bg-white px-2 py-1">
+                        担当:{" "}
+                        {members.find((member) => member.id === item.assigneeId)?.name ??
+                          "未設定"}
+                      </span>
+                    ) : null}
+                    {item.tags && item.tags.length > 0 ? (
+                      <span className="border border-slate-200 bg-white px-2 py-1">
+                        #{item.tags.join(" #")}
+                      </span>
                     ) : null}
                   </div>
                   {splitMap[item.id]?.length ? (
@@ -386,6 +510,61 @@ export default function BacklogPage() {
                     </select>
                   </label>
                 </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    期限
+                    <input
+                      type="date"
+                      value={form.dueDate}
+                      onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    担当
+                    <select
+                      value={form.assigneeId}
+                      onChange={(e) => setForm((p) => ({ ...p, assigneeId: e.target.value }))}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    >
+                      <option value="">未設定</option>
+                      {members.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name ?? member.email ?? member.id}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    タグ
+                    <input
+                      value={form.tags}
+                      onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
+                      placeholder="ui, sprint"
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    />
+                  </label>
+                </div>
+                <label className="grid gap-1 text-xs text-slate-500">
+                  依存タスク
+                  <select
+                    multiple
+                    value={form.dependencyIds}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions).map(
+                        (option) => option.value,
+                      );
+                      setForm((p) => ({ ...p, dependencyIds: selected }));
+                    }}
+                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                  >
+                    {items.map((candidate) => (
+                      <option key={candidate.id} value={candidate.id}>
+                        {candidate.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={addItem}
@@ -395,8 +574,9 @@ export default function BacklogPage() {
                   </button>
                   <button
                     onClick={estimateScore}
-                    className="border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
+                    className="inline-flex items-center gap-2 border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
                   >
+                    <Sparkles size={16} />
                     AIでスコア推定
                   </button>
                 </div>
@@ -470,6 +650,65 @@ export default function BacklogPage() {
                     ))}
                   </select>
                 </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    期限
+                    <input
+                      type="date"
+                      value={editForm.dueDate}
+                      onChange={(e) => setEditForm((p) => ({ ...p, dueDate: e.target.value }))}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    担当
+                    <select
+                      value={editForm.assigneeId}
+                      onChange={(e) =>
+                        setEditForm((p) => ({ ...p, assigneeId: e.target.value }))
+                      }
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    >
+                      <option value="">未設定</option>
+                      {members.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name ?? member.email ?? member.id}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    タグ
+                    <input
+                      value={editForm.tags}
+                      onChange={(e) => setEditForm((p) => ({ ...p, tags: e.target.value }))}
+                      placeholder="ui, sprint"
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    />
+                  </label>
+                </div>
+                <label className="grid gap-1 text-xs text-slate-500">
+                  依存タスク
+                  <select
+                    multiple
+                    value={editForm.dependencyIds}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions).map(
+                        (option) => option.value,
+                      );
+                      setEditForm((p) => ({ ...p, dependencyIds: selected }));
+                    }}
+                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                  >
+                    {items
+                      .filter((candidate) => candidate.id !== editItem?.id)
+                      .map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.title}
+                        </option>
+                      ))}
+                  </select>
+                </label>
                 <button
                   onClick={saveEdit}
                   className="bg-[#2323eb] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[#2323eb]/30"

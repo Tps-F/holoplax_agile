@@ -5,6 +5,7 @@ import {
   ok,
   serverError,
 } from "../../../lib/api-response";
+import { logAudit } from "../../../lib/audit";
 import prisma from "../../../lib/prisma";
 import { resolveWorkspaceId } from "../../../lib/workspace-context";
 
@@ -48,6 +49,12 @@ export async function POST(request: Request) {
         userId,
         workspaceId,
       },
+    });
+    await logAudit({
+      actorId: userId,
+      action: "VELOCITY_CREATE",
+      targetWorkspaceId: workspaceId,
+      metadata: { entryId: entry.id, points: entry.points },
     });
     return ok({ entry });
   } catch (error) {

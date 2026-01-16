@@ -6,6 +6,7 @@ import {
   serverError,
 } from "../../../../lib/api-response";
 import { applyAutomationForTask } from "../../../../lib/automation";
+import { logAudit } from "../../../../lib/audit";
 import prisma from "../../../../lib/prisma";
 import { TASK_STATUS } from "../../../../lib/types";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
@@ -25,6 +26,12 @@ export async function PATCH(
   }
   if (body.urgency) data.urgency = body.urgency;
   if (body.risk) data.risk = body.risk;
+  if (body.dueDate !== undefined) {
+    data.dueDate = body.dueDate ? new Date(body.dueDate) : null;
+  }
+  if (body.tags !== undefined) {
+    data.tags = Array.isArray(body.tags) ? body.tags.map((tag: string) => String(tag)) : [];
+  }
   const statusValue =
     body.status && Object.values(TASK_STATUS).includes(body.status)
       ? body.status
@@ -38,6 +45,18 @@ export async function PATCH(
     const workspaceId = await resolveWorkspaceId(userId);
     if (!workspaceId) {
       return notFound("workspace not selected");
+    }
+    if (body.assigneeId !== undefined) {
+      const nextAssigneeId = body.assigneeId ? String(body.assigneeId) : null;
+      if (nextAssigneeId) {
+        const member = await prisma.workspaceMember.findUnique({
+          where: { workspaceId_userId: { workspaceId, userId: nextAssigneeId } },
+          select: { userId: true },
+        });
+        data.assigneeId = member ? nextAssigneeId : null;
+      } else {
+        data.assigneeId = null;
+      }
     }
     if (statusValue === TASK_STATUS.SPRINT) {
       const activeSprint = await prisma.sprint.findFirst({
@@ -59,6 +78,31 @@ export async function PATCH(
     }
     const task = await prisma.task.findFirst({
       where: { id, workspaceId },
+    });
+    if (Array.isArray(body.dependencyIds)) {
+      const dependencyIds = body.dependencyIds.map((depId: string) => String(depId));
+      const allowed = dependencyIds.length
+        ? await prisma.task.findMany({
+            where: { id: { in: dependencyIds }, workspaceId },
+            select: { id: true },
+          })
+        : [];
+      await prisma.taskDependency.deleteMany({ where: { taskId: id } });
+      if (allowed.length > 0) {
+        await prisma.taskDependency.createMany({
+          data: allowed
+            .map((dep) => dep.id)
+            .filter((depId) => depId && depId !== id)
+            .map((depId) => ({ taskId: id, dependsOnId: depId })),
+          skipDuplicates: true,
+        });
+      }
+    }
+    await logAudit({
+      actorId: userId,
+      action: "TASK_UPDATE",
+      targetWorkspaceId: workspaceId,
+      metadata: { taskId: id },
     });
     if (task) {
       await applyAutomationForTask({
@@ -93,11 +137,18 @@ export async function DELETE(
     if (!workspaceId) {
       return notFound("workspace not selected");
     }
+    await prisma.taskDependency.deleteMany({ where: { taskId: id } });
     await prisma.aiSuggestion.deleteMany({ where: { taskId: id } });
     const deleted = await prisma.task.deleteMany({ where: { id, workspaceId } });
     if (!deleted.count) {
       return notFound();
     }
+    await logAudit({
+      actorId: userId,
+      action: "TASK_DELETE",
+      targetWorkspaceId: workspaceId,
+      metadata: { taskId: id },
+    });
     return ok({ ok: true });
   } catch (error) {
     const authError = handleAuthError(error);

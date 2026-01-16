@@ -14,6 +14,10 @@ export type TaskDTO = {
   urgency: string;
   risk: string;
   status: TaskStatus;
+  dueDate?: string | Date | null;
+  assigneeId?: string | null;
+  tags?: string[];
+  dependencyIds?: string[];
   createdAt?: string | Date;
   updatedAt?: string | Date;
 };
@@ -47,5 +51,6 @@ export type SprintDTO = {
   status: "ACTIVE" | "CLOSED";
   capacityPoints: number;
   startedAt?: string | Date;
+  plannedEndAt?: string | Date | null;
   endedAt?: string | Date | null;
 };

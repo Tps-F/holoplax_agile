@@ -61,6 +61,11 @@ const main = async () => {
       members: { create: { userId: testUser.id, role: "owner" } },
     },
   });
+  await prisma.workspaceMember.upsert({
+    where: { workspaceId_userId: { workspaceId: workspace.id, userId: adminUser.id } },
+    update: { role: "admin" },
+    create: { workspaceId: workspace.id, userId: adminUser.id, role: "admin" },
+  });
 
   const sprint = await prisma.sprint.create({
     data: {
@@ -73,72 +78,106 @@ const main = async () => {
     },
   });
 
-  await prisma.task.createMany({
+  const heroCopy = await prisma.task.create({
+    data: {
+      title: "LPのヒーローコピー確定",
+      description: "価値訴求を3案出し、社内レビューで決定。",
+      points: 3,
+      urgency: "中",
+      risk: "低",
+      status: "SPRINT",
+      sprintId: sprint.id,
+      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 4),
+      tags: ["copy", "lp"],
+      assigneeId: adminUser.id,
+      userId: testUser.id,
+      workspaceId: workspace.id,
+    },
+  });
+  const onboarding = await prisma.task.create({
+    data: {
+      title: "オンボーディングの質問設計",
+      description: "初回セットアップの質問項目と順序を決める。",
+      points: 5,
+      urgency: "中",
+      risk: "中",
+      status: "SPRINT",
+      sprintId: sprint.id,
+      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 6),
+      tags: ["onboarding", "ux"],
+      assigneeId: testUser.id,
+      userId: testUser.id,
+      workspaceId: workspace.id,
+    },
+  });
+  const velocityCopy = await prisma.task.create({
+    data: {
+      title: "ベロシティ可視化の文言調整",
+      description: "KPIカードの説明文と単位を見直す。",
+      points: 2,
+      urgency: "低",
+      risk: "低",
+      status: "DONE",
+      sprintId: sprint.id,
+      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 1),
+      tags: ["dashboard"],
+      assigneeId: testUser.id,
+      userId: testUser.id,
+      workspaceId: workspace.id,
+    },
+  });
+  const inboxSpec = await prisma.task.create({
+    data: {
+      title: "インボックス取り込みの仕様ドラフト",
+      description: "メモ/カレンダーから取り込む粒度を定義。",
+      points: 8,
+      urgency: "中",
+      risk: "高",
+      status: "BACKLOG",
+      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 10),
+      tags: ["intake", "spec"],
+      assigneeId: testUser.id,
+      userId: testUser.id,
+      workspaceId: workspace.id,
+    },
+  });
+  const notifyDesign = await prisma.task.create({
+    data: {
+      title: "通知設計のたたき台",
+      description: "Slack/メールの通知条件を整理して下書き。",
+      points: 5,
+      urgency: "低",
+      risk: "中",
+      status: "BACKLOG",
+      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 12),
+      tags: ["notification"],
+      assigneeId: adminUser.id,
+      userId: testUser.id,
+      workspaceId: workspace.id,
+    },
+  });
+  const reviewTemplate = await prisma.task.create({
+    data: {
+      title: "スプリント完了レビューのテンプレ作成",
+      description: "振り返りの質問項目を整える。",
+      points: 3,
+      urgency: "中",
+      risk: "低",
+      status: "BACKLOG",
+      dueDate: new Date(Date.now() + 1000 * 60 * 60 * 24 * 8),
+      tags: ["retro"],
+      assigneeId: testUser.id,
+      userId: testUser.id,
+      workspaceId: workspace.id,
+    },
+  });
+  await prisma.taskDependency.createMany({
     data: [
-      {
-        title: "LPのヒーローコピー確定",
-        description: "価値訴求を3案出し、社内レビューで決定。",
-        points: 3,
-        urgency: "中",
-        risk: "低",
-        status: "SPRINT",
-        sprintId: sprint.id,
-        userId: testUser.id,
-        workspaceId: workspace.id,
-      },
-      {
-        title: "オンボーディングの質問設計",
-        description: "初回セットアップの質問項目と順序を決める。",
-        points: 5,
-        urgency: "中",
-        risk: "中",
-        status: "SPRINT",
-        sprintId: sprint.id,
-        userId: testUser.id,
-        workspaceId: workspace.id,
-      },
-      {
-        title: "ベロシティ可視化の文言調整",
-        description: "KPIカードの説明文と単位を見直す。",
-        points: 2,
-        urgency: "低",
-        risk: "低",
-        status: "DONE",
-        sprintId: sprint.id,
-        userId: testUser.id,
-        workspaceId: workspace.id,
-      },
-      {
-        title: "インボックス取り込みの仕様ドラフト",
-        description: "メモ/カレンダーから取り込む粒度を定義。",
-        points: 8,
-        urgency: "中",
-        risk: "高",
-        status: "BACKLOG",
-        userId: testUser.id,
-        workspaceId: workspace.id,
-      },
-      {
-        title: "通知設計のたたき台",
-        description: "Slack/メールの通知条件を整理して下書き。",
-        points: 5,
-        urgency: "低",
-        risk: "中",
-        status: "BACKLOG",
-        userId: testUser.id,
-        workspaceId: workspace.id,
-      },
-      {
-        title: "スプリント完了レビューのテンプレ作成",
-        description: "振り返りの質問項目を整える。",
-        points: 3,
-        urgency: "中",
-        risk: "低",
-        status: "BACKLOG",
-        userId: testUser.id,
-        workspaceId: workspace.id,
-      },
+      { taskId: onboarding.id, dependsOnId: heroCopy.id },
+      { taskId: reviewTemplate.id, dependsOnId: velocityCopy.id },
+      { taskId: notifyDesign.id, dependsOnId: inboxSpec.id },
     ],
+    skipDuplicates: true,
   });
 
   const existingVelocity = await prisma.velocityEntry.count({ where: { userId: testUser.id } });

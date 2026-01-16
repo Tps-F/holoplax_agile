@@ -6,6 +6,7 @@ import {
   ok,
   serverError,
 } from "../../../../lib/api-response";
+import { logAudit } from "../../../../lib/audit";
 import prisma from "../../../../lib/prisma";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
@@ -30,6 +31,7 @@ export async function GET() {
         status: true,
         capacityPoints: true,
         startedAt: true,
+        plannedEndAt: true,
         endedAt: true,
       },
     });
@@ -52,6 +54,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => ({}));
     const name = String(body.name ?? "").trim() || defaultSprintName();
     const capacityPoints = Number(body.capacityPoints ?? 24);
+    const plannedEndAt = body.plannedEndAt ? new Date(body.plannedEndAt) : null;
     if (!Number.isFinite(capacityPoints) || capacityPoints <= 0) {
       return badRequest("capacityPoints must be positive");
     }
@@ -67,6 +70,7 @@ export async function POST(request: Request) {
           capacityPoints,
           userId,
           workspaceId,
+          plannedEndAt,
         },
         select: {
           id: true,
@@ -74,6 +78,7 @@ export async function POST(request: Request) {
           status: true,
           capacityPoints: true,
           startedAt: true,
+          plannedEndAt: true,
           endedAt: true,
         },
       });
@@ -84,6 +89,12 @@ export async function POST(request: Request) {
       return created;
     });
 
+    await logAudit({
+      actorId: userId,
+      action: "SPRINT_START",
+      targetWorkspaceId: workspaceId,
+      metadata: { sprintId: sprint.id, name: sprint.name },
+    });
     return ok({ sprint });
   } catch (error) {
     const authError = handleAuthError(error);
@@ -118,17 +129,50 @@ export async function PATCH() {
           status: true,
           capacityPoints: true,
           startedAt: true,
+          plannedEndAt: true,
           endedAt: true,
+        },
+      });
+      const doneTasks = await tx.task.findMany({
+        where: { sprintId: sprint.id, status: "DONE" },
+        select: { points: true },
+      });
+      const completedPoints = doneTasks.reduce((sum, task) => sum + task.points, 0);
+      const rangeMin = Math.max(0, completedPoints - 2);
+      const rangeMax = completedPoints + 2;
+      await tx.velocityEntry.create({
+        data: {
+          name: updated.name,
+          points: completedPoints,
+          range: `${rangeMin}-${rangeMax}`,
+          userId,
+          workspaceId,
         },
       });
       await tx.task.updateMany({
         where: { workspaceId, status: "SPRINT" },
         data: { status: "BACKLOG", sprintId: null },
       });
-      return updated;
+      return { updated, completedPoints, rangeMin, rangeMax };
     });
 
-    return ok({ sprint: closed });
+    await logAudit({
+      actorId: userId,
+      action: "SPRINT_END",
+      targetWorkspaceId: workspaceId,
+      metadata: { sprintId: closed.updated.id, completedPoints: closed.completedPoints },
+    });
+    await logAudit({
+      actorId: userId,
+      action: "VELOCITY_AUTO_CREATE",
+      targetWorkspaceId: workspaceId,
+      metadata: {
+        sprintId: closed.updated.id,
+        points: closed.completedPoints,
+        range: `${closed.rangeMin}-${closed.rangeMax}`,
+      },
+    });
+    return ok({ sprint: closed.updated });
   } catch (error) {
     const authError = handleAuthError(error);
     if (authError) return authError;

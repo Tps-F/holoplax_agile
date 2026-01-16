@@ -31,6 +31,11 @@ export default async function proxy(request: NextRequest) {
     url.searchParams.set("callbackUrl", request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
+  if (!token.onboardingCompletedAt && !pathname.startsWith("/onboarding")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/onboarding";
+    return NextResponse.redirect(url);
+  }
 
   return NextResponse.next();
 }

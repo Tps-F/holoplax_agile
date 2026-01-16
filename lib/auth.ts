@@ -19,7 +19,19 @@ providers.push(
       const email = credentials?.email?.toLowerCase().trim();
       const password = credentials?.password;
       if (!email || !password) return null;
-      const user = await prisma.user.findUnique({ where: { email } });
+      const user = await prisma.user.findUnique({
+        where: { email },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          role: true,
+          disabledAt: true,
+          emailVerified: true,
+          onboardingCompletedAt: true,
+        },
+      });
       if (!user) return null;
       if (user.disabledAt) return null;
       const passwordRow = await prisma.userPassword.findUnique({
@@ -36,6 +48,7 @@ providers.push(
         image: user.image,
         role: user.role,
         disabledAt: user.disabledAt,
+        onboardingCompletedAt: user.onboardingCompletedAt,
       };
     },
   }),
@@ -67,7 +80,7 @@ export const authOptions: NextAuthOptions = {
   },
   session: { strategy: "jwt" },
   callbacks: {
-    jwt: ({ token, user, trigger, session }) => {
+    jwt: async ({ token, user, trigger, session }) => {
       if (user) {
         token.sub = (user as { id?: string }).id ?? token.sub;
         token.role = (user as { role?: string }).role ?? "USER";
@@ -75,16 +88,33 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email ?? token.email;
         token.picture = user.image ?? token.picture;
         token.disabledAt = (user as { disabledAt?: Date | null }).disabledAt ?? null;
+        token.onboardingCompletedAt =
+          (user as { onboardingCompletedAt?: Date | null }).onboardingCompletedAt ?? null;
       }
       if (trigger === "update") {
         const nextUser = session?.user as
-          | { name?: string | null; email?: string | null; image?: string | null }
+          | {
+              name?: string | null;
+              email?: string | null;
+              image?: string | null;
+              onboardingCompletedAt?: string | null;
+            }
           | undefined;
         if (nextUser) {
           token.name = nextUser.name ?? token.name;
           token.email = nextUser.email ?? token.email;
           token.picture = nextUser.image ?? token.picture;
+          if (nextUser.onboardingCompletedAt) {
+            token.onboardingCompletedAt = nextUser.onboardingCompletedAt;
+          }
         }
+      }
+      if (!token.onboardingCompletedAt && token.sub) {
+        const record = await prisma.user.findUnique({
+          where: { id: token.sub },
+          select: { onboardingCompletedAt: true },
+        });
+        token.onboardingCompletedAt = record?.onboardingCompletedAt ?? null;
       }
       return token;
     },
@@ -105,6 +135,8 @@ export const authOptions: NextAuthOptions = {
         name: token.name,
         email: token.email,
         image: token.picture as string | null | undefined,
+        onboardingCompletedAt: (token as { onboardingCompletedAt?: Date | null })
+          .onboardingCompletedAt,
       },
     }),
   },
