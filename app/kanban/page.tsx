@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Sidebar } from "../components/sidebar";
 import { useWorkspaceId } from "../components/use-workspace-id";
 import { TASK_STATUS, TaskDTO, TaskStatus } from "../../lib/types";
+import {
+  DELEGATE_TAG,
+  SPLIT_CHILD_TAG,
+  SPLIT_PARENT_TAG,
+} from "../../lib/automation-constants";
 
 type MemberRow = {
   id: string;
@@ -30,11 +35,19 @@ export default function KanbanPage() {
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverColumn, setHoverColumn] = useState<TaskStatus | null>(null);
+  const aiTags = useMemo(
+    () => new Set([DELEGATE_TAG, SPLIT_CHILD_TAG, SPLIT_PARENT_TAG]),
+    [],
+  );
 
   const isBlocked = useCallback(
     (item: TaskDTO) =>
       (item.dependencies ?? []).some((dep) => dep.status !== TASK_STATUS.DONE),
     [],
+  );
+  const isAiTask = useCallback(
+    (item: TaskDTO) => (item.tags ?? []).some((tag) => aiTags.has(tag)),
+    [aiTags],
   );
 
   const fetchTasks = useCallback(async () => {
@@ -154,9 +167,20 @@ export default function KanbanPage() {
                       draggingId === item.id ? "opacity-60" : ""
                     }`}
                   >
-                    <p className="break-words font-semibold text-slate-900">
-                      {item.title}
-                    </p>
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="break-words font-semibold text-slate-900">
+                        {item.title}
+                      </p>
+                      <span
+                        className={`shrink-0 border px-2 py-0.5 text-[10px] font-semibold ${
+                          isAiTask(item)
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : "border-slate-200 bg-white text-slate-600"
+                        }`}
+                      >
+                        {isAiTask(item) ? "AI" : "人"}
+                      </span>
+                    </div>
                     {item.description ? (
                       <p className="mt-1 break-words text-xs text-slate-600">
                         {item.description}
