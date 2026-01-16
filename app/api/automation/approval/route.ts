@@ -9,6 +9,7 @@ import {
 import { generateSplitSuggestions } from "../../../../lib/ai-suggestions";
 import {
   PENDING_APPROVAL_TAG,
+  SPLIT_REJECTED_TAG,
   SPLIT_CHILD_TAG,
   SPLIT_PARENT_TAG,
   withTag,
@@ -68,7 +69,10 @@ export async function POST(request: Request) {
     if (!task) return notFound("task not found");
 
     if (action === "reject") {
-      const nextTags = withoutTags(task.tags ?? [], [PENDING_APPROVAL_TAG, SPLIT_PARENT_TAG]);
+      const nextTags = withTag(
+        withoutTags(task.tags ?? [], [PENDING_APPROVAL_TAG, SPLIT_PARENT_TAG]),
+        SPLIT_REJECTED_TAG,
+      );
       await prisma.task.update({
         where: { id: task.id },
         data: { tags: nextTags },
@@ -77,6 +81,13 @@ export async function POST(request: Request) {
     }
 
     // approve path
+    if (task.tags?.includes(SPLIT_PARENT_TAG)) {
+      return ok({ status: "already-approved", created: 0 });
+    }
+    if (!task.tags?.includes(PENDING_APPROVAL_TAG)) {
+      return ok({ status: "no-pending", created: 0 });
+    }
+
     const latest = await prisma.aiSuggestion.findFirst({
       where: { taskId: task.id, workspaceId, type: "SPLIT" },
       orderBy: { createdAt: "desc" },
@@ -92,7 +103,7 @@ export async function POST(request: Request) {
 
     await prisma.$transaction(async (tx) => {
       const nextTags = withTag(
-        withoutTags(task.tags ?? [], [PENDING_APPROVAL_TAG]),
+        withoutTags(task.tags ?? [], [PENDING_APPROVAL_TAG, SPLIT_REJECTED_TAG]),
         SPLIT_PARENT_TAG,
       );
       await tx.task.update({

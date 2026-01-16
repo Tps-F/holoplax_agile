@@ -74,7 +74,9 @@ export function Sidebar() {
     };
   }, [loadWorkspaces, session?.user]);
   return (
-    <aside className="sticky top-0 hidden min-h-screen w-60 flex-col border border-slate-200 bg-white p-4 shadow-sm lg:flex">
+    <>
+      <div className="hidden w-60 lg:block" aria-hidden />
+      <aside className="fixed left-0 top-0 hidden h-screen w-60 flex-col border border-slate-200 bg-white p-4 shadow-sm lg:flex">
       <div className="border-b border-slate-200 pb-4">
         <Image
           src="/logo_holoplax.webp"
@@ -204,6 +206,7 @@ export function Sidebar() {
           </Link>
         )}
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }

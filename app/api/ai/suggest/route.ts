@@ -14,6 +14,32 @@ const canned = [
   "完了条件を1文で定義し、レビュー手順を添えましょう。",
 ];
 
+export async function GET(request: Request) {
+  try {
+    const { userId } = await requireAuth();
+    const workspaceId = await resolveWorkspaceId(userId);
+    if (!workspaceId) {
+      return ok({ suggestion: null });
+    }
+    const { searchParams } = new URL(request.url);
+    const taskId = searchParams.get("taskId");
+    if (!taskId) {
+      return badRequest("taskId is required");
+    }
+    const latest = await prisma.aiSuggestion.findFirst({
+      where: { taskId, workspaceId, type: "TIP" },
+      orderBy: { createdAt: "desc" },
+      select: { output: true },
+    });
+    return ok({ suggestion: latest?.output ?? null });
+  } catch (error) {
+    const authError = handleAuthError(error);
+    if (authError) return authError;
+    console.error("GET /api/ai/suggest error", error);
+    return serverError("failed to load suggestion");
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { userId } = await requireAuth();
@@ -61,17 +87,17 @@ export async function POST(request: Request) {
           const data = await res.json();
           const content = data.choices?.[0]?.message?.content;
           if (content) {
-          await prisma.aiSuggestion.create({
-            data: {
-              type: "TIP",
-              taskId,
-              inputTitle: title,
-              inputDescription: description,
-              output: content,
-              userId,
-              workspaceId,
-            },
-          });
+            await prisma.aiSuggestion.create({
+              data: {
+                type: "TIP",
+                taskId,
+                inputTitle: title,
+                inputDescription: description,
+                output: content,
+                userId,
+                workspaceId,
+              },
+            });
             return ok({ suggestion: content });
           }
         }
@@ -81,18 +107,18 @@ export async function POST(request: Request) {
     }
 
     const pick = canned[Math.floor(Math.random() * canned.length)];
-  await prisma.aiSuggestion.create({
-    data: {
-      type: "TIP",
-      taskId,
-      inputTitle: title,
-      inputDescription: description,
-      output: pick,
-      userId,
-      workspaceId,
-    },
-  });
-  return ok({ suggestion: `${title} のAI提案: ${pick}` });
+    await prisma.aiSuggestion.create({
+      data: {
+        type: "TIP",
+        taskId,
+        inputTitle: title,
+        inputDescription: description,
+        output: pick,
+        userId,
+        workspaceId,
+      },
+    });
+    return ok({ suggestion: `${title} のAI提案: ${pick}` });
   } catch (error) {
     const authError = handleAuthError(error);
     if (authError) return authError;

@@ -66,6 +66,7 @@ export default function BacklogPage() {
   const [suggestLoadingId, setSuggestLoadingId] = useState<string | null>(null);
   const [splitLoadingId, setSplitLoadingId] = useState<string | null>(null);
   const [scoreLoading, setScoreLoading] = useState(false);
+  const [approvalLoadingId, setApprovalLoadingId] = useState<string | null>(null);
 
   const fetchTasks = useCallback(async () => {
     if (!ready) return;
@@ -148,38 +149,63 @@ export default function BacklogPage() {
   };
 
   const moveToSprint = async (id: string) => {
-    await fetch(`/api/tasks/${id}`, {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status: TASK_STATUS.SPRINT } : item)),
+    );
+    const res = await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: TASK_STATUS.SPRINT }),
     });
+    if (!res.ok) {
+      void fetchTasks();
+      return;
+    }
     void fetchTasks();
   };
 
   const moveToBacklog = async (id: string) => {
-    await fetch(`/api/tasks/${id}`, {
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status: TASK_STATUS.BACKLOG } : item)),
+    );
+    const res = await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: TASK_STATUS.BACKLOG }),
     });
+    if (!res.ok) {
+      void fetchTasks();
+      return;
+    }
     void fetchTasks();
   };
 
   const getSuggestion = async (title: string, description?: string, taskId?: string) => {
     setSuggestLoadingId(taskId ?? title);
     try {
+      if (taskId) {
+        const cached = await fetch(
+          `/api/ai/suggest?taskId=${encodeURIComponent(taskId)}`,
+        );
+        if (cached.ok) {
+          const data = await cached.json();
+          if (data.suggestion !== null && data.suggestion !== undefined) {
+            setSuggestionMap((prev) => ({ ...prev, [taskId]: data.suggestion }));
+            return;
+          }
+        }
+      }
       const res = await fetch("/api/ai/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, description, taskId }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (taskId) {
-          setSuggestionMap((prev) => ({ ...prev, [taskId]: data.suggestion }));
-        } else {
-          setSuggestion(data.suggestion);
-        }
+      if (!res.ok) return;
+      const data = await res.json();
+      if (taskId) {
+        setSuggestionMap((prev) => ({ ...prev, [taskId]: data.suggestion }));
+      } else {
+        setSuggestion(data.suggestion);
       }
     } finally {
       setSuggestLoadingId(null);
@@ -310,21 +336,31 @@ export default function BacklogPage() {
   };
 
   const approveAutomation = async (id: string) => {
-    await fetch("/api/automation/approval", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskId: id, action: "approve" }),
-    });
-    void fetchTasks();
+    setApprovalLoadingId(id);
+    try {
+      await fetch("/api/automation/approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId: id, action: "approve" }),
+      });
+      void fetchTasks();
+    } finally {
+      setApprovalLoadingId(null);
+    }
   };
 
   const rejectAutomation = async (id: string) => {
-    await fetch("/api/automation/approval", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskId: id, action: "reject" }),
-    });
-    void fetchTasks();
+    setApprovalLoadingId(id);
+    try {
+      await fetch("/api/automation/approval", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId: id, action: "reject" }),
+      });
+      void fetchTasks();
+    } finally {
+      setApprovalLoadingId(null);
+    }
   };
 
   return (
@@ -378,12 +414,22 @@ export default function BacklogPage() {
           </div>
         </header>
 
-        {items.filter((item) => item.tags?.includes(DELEGATE_TAG)).length ? (
+        {items.filter(
+          (item) =>
+            item.status === TASK_STATUS.BACKLOG && item.tags?.includes(DELEGATE_TAG),
+        ).length ? (
           <section className="border border-slate-200 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-900">AI委任キュー</h2>
               <span className="text-xs text-slate-500">
-                {items.filter((item) => item.tags?.includes(DELEGATE_TAG)).length} 件
+                {
+                  items.filter(
+                    (item) =>
+                      item.status === TASK_STATUS.BACKLOG &&
+                      item.tags?.includes(DELEGATE_TAG),
+                  ).length
+                }{" "}
+                件
               </span>
             </div>
             <div className="mt-4 grid gap-3">
@@ -460,14 +506,16 @@ export default function BacklogPage() {
                       </span>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                      <button
+                      <LoadingButton
                         onClick={() => approveAutomation(item.id)}
+                        loading={approvalLoadingId === item.id}
                         className="border border-emerald-300 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700 transition hover:border-emerald-400"
                       >
                         承認して分解
-                      </button>
+                      </LoadingButton>
                       <button
                         onClick={() => rejectAutomation(item.id)}
+                        disabled={approvalLoadingId === item.id}
                         className="border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 transition hover:border-slate-300"
                       >
                         却下
@@ -811,6 +859,13 @@ export default function BacklogPage() {
                       </option>
                     ))}
                   </select>
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, dependencyIds: [] }))}
+                    className="w-fit text-[11px] text-slate-500 transition hover:text-[#2323eb]"
+                  >
+                    選択を解除
+                  </button>
                 </label>
                 <div className="flex flex-wrap items-center gap-2">
                   <button
@@ -969,6 +1024,13 @@ export default function BacklogPage() {
                         </option>
                       ))}
                   </select>
+                  <button
+                    type="button"
+                    onClick={() => setEditForm((p) => ({ ...p, dependencyIds: [] }))}
+                    className="w-fit text-[11px] text-slate-500 transition hover:text-[#2323eb]"
+                  >
+                    選択を解除
+                  </button>
                 </label>
                 <button
                   onClick={saveEdit}
