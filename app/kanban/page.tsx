@@ -104,7 +104,7 @@ export default function KanbanPage() {
   return (
     <div className="mx-auto flex min-h-screen max-w-7xl gap-6 px-4 py-10 lg:px-6 lg:py-14">
       <Sidebar />
-      <main className="flex-1 space-y-6">
+      <main className="min-w-0 flex-1 space-y-6">
         <header className="border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Kanban</p>
@@ -115,7 +115,7 @@ export default function KanbanPage() {
           </div>
         </header>
 
-        <section className="grid gap-4 lg:grid-cols-3">
+        <section className="min-w-0 grid gap-4 lg:grid-cols-3 lg:items-start">
           {columns.map((col) => (
             <div
               key={col.key}
@@ -125,7 +125,7 @@ export default function KanbanPage() {
               }}
               onDragLeave={() => setHoverColumn(null)}
               onDrop={() => handleDrop(col.key)}
-              className={`min-h-[60vh] border border-slate-200 bg-white p-4 shadow-sm ${
+              className={`min-h-[60vh] min-w-0 border border-slate-200 bg-white p-4 shadow-sm ${
                 hoverColumn === col.key ? "ring-2 ring-[#2323eb]/40" : ""
               }`}
             >
@@ -150,17 +150,21 @@ export default function KanbanPage() {
                       e.dataTransfer.effectAllowed = "move";
                     }}
                     onDragEnd={() => setDraggingId(null)}
-                    className={`border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 transition ${
+                    className={`min-w-0 break-words border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 transition ${
                       draggingId === item.id ? "opacity-60" : ""
                     }`}
                   >
-                    <p className="font-semibold text-slate-900">{item.title}</p>
+                    <p className="break-words font-semibold text-slate-900">
+                      {item.title}
+                    </p>
                     {item.description ? (
-                      <p className="mt-1 text-xs text-slate-600">{item.description}</p>
+                      <p className="mt-1 break-words text-xs text-slate-600">
+                        {item.description}
+                      </p>
                     ) : null}
                     {item.dependencies && item.dependencies.length > 0 ? (
                       <p
-                        className={`mt-1 text-xs ${
+                        className={`mt-1 break-words text-xs ${
                           isBlocked(item) ? "text-amber-700" : "text-slate-500"
                         }`}
                       >
@@ -174,30 +178,30 @@ export default function KanbanPage() {
                           .join(", ")}
                       </p>
                     ) : null}
-                    <div className="mt-2 flex items-center gap-2 text-xs text-slate-600">
-                      <span className="border border-slate-200 bg-white px-2 py-1">
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                      <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
                         {item.points} pt
                       </span>
-                      <span className="border border-slate-200 bg-white px-2 py-1">
+                      <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
                         緊急度: {item.urgency}
                       </span>
-                      <span className="border border-slate-200 bg-white px-2 py-1">
+                      <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
                         リスク: {item.risk}
                       </span>
                       {item.dueDate ? (
-                        <span className="border border-slate-200 bg-white px-2 py-1">
+                        <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
                           期限: {new Date(item.dueDate).toLocaleDateString()}
                         </span>
                       ) : null}
                       {item.assigneeId ? (
-                        <span className="border border-slate-200 bg-white px-2 py-1">
+                        <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
                           担当:{" "}
                           {members.find((member) => member.id === item.assigneeId)?.name ??
                             "未設定"}
                         </span>
                       ) : null}
                       {item.tags && item.tags.length > 0 ? (
-                        <span className="border border-slate-200 bg-white px-2 py-1">
+                        <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
                           #{item.tags.join(" #")}
                         </span>
                       ) : null}
