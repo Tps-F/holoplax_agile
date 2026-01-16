@@ -5,6 +5,11 @@ import { useCallback, useEffect, useState } from "react";
 import { Sidebar } from "../components/sidebar";
 import { useWorkspaceId } from "../components/use-workspace-id";
 import { TASK_STATUS, TaskDTO } from "../../lib/types";
+import {
+  DELEGATE_TAG,
+  PENDING_APPROVAL_TAG,
+  SPLIT_PARENT_TAG,
+} from "../../lib/automation-constants";
 
 type SplitSuggestion = {
   title: string;
@@ -13,10 +18,6 @@ type SplitSuggestion = {
   risk: string;
   detail: string;
 };
-
-const DELEGATE_TAG = "auto-delegate";
-const SPLIT_PARENT_TAG = "auto-split-parent";
-const PENDING_APPROVAL_TAG = "automation-needs-approval";
 
 type MemberRow = {
   id: string;
@@ -86,6 +87,9 @@ export default function BacklogPage() {
     void fetchTasks();
     void fetchMembers();
   }, [fetchTasks, fetchMembers]);
+
+  const isBlocked = (item: TaskDTO) =>
+    (item.dependencies ?? []).some((dep) => dep.status !== TASK_STATUS.DONE);
 
   const addItem = async () => {
     if (!form.title.trim()) return;
@@ -271,6 +275,24 @@ export default function BacklogPage() {
     await fetchTasks();
   };
 
+  const approveAutomation = async (id: string) => {
+    await fetch("/api/automation/approval", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId: id, action: "approve" }),
+    });
+    void fetchTasks();
+  };
+
+  const rejectAutomation = async (id: string) => {
+    await fetch("/api/automation/approval", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ taskId: id, action: "reject" }),
+    });
+    void fetchTasks();
+  };
+
   return (
     <div className="mx-auto flex min-h-screen max-w-7xl gap-6 px-4 py-10 lg:px-6 lg:py-14">
       <Sidebar splitThreshold={8} />
@@ -367,6 +389,62 @@ export default function BacklogPage() {
           </section>
         ) : null}
 
+        {items.filter((item) => item.tags?.includes(PENDING_APPROVAL_TAG)).length ? (
+          <section className="border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-slate-900">自動分解 承認待ち</h2>
+              <span className="text-xs text-slate-500">
+                {items.filter((item) => item.tags?.includes(PENDING_APPROVAL_TAG)).length} 件
+              </span>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {items
+                .filter((item) => item.tags?.includes(PENDING_APPROVAL_TAG))
+                .map((item) => (
+                  <div
+                    key={item.id}
+                    className="border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-slate-800"
+                  >
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-slate-900">{item.title}</p>
+                      <span className="border border-amber-200 bg-white px-2 py-1 text-[11px] text-amber-700">
+                        承認待ち
+                      </span>
+                    </div>
+                    {item.description ? (
+                      <p className="mt-1 text-xs text-slate-700">{item.description}</p>
+                    ) : null}
+                    <div className="mt-2 flex items-center gap-2 text-xs text-slate-700">
+                      <span className="border border-slate-200 bg-white px-2 py-1">
+                        {item.points} pt
+                      </span>
+                      <span className="border border-slate-200 bg-white px-2 py-1">
+                        緊急度: {item.urgency}
+                      </span>
+                      <span className="border border-slate-200 bg-white px-2 py-1">
+                        リスク: {item.risk}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                      <button
+                        onClick={() => approveAutomation(item.id)}
+                        className="border border-emerald-300 bg-emerald-50 px-3 py-1 font-semibold text-emerald-700 transition hover:border-emerald-400"
+                      >
+                        承認して分解
+                      </button>
+                      <button
+                        onClick={() => rejectAutomation(item.id)}
+                        className="border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 transition hover:border-slate-300"
+                      >
+                        却下
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </section>
+        ) : null}
+
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="grid gap-3">
             {items
@@ -408,7 +486,13 @@ export default function BacklogPage() {
                     {view === "product" ? (
                       <button
                         className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                        onClick={() => moveToSprint(item.id)}
+                        onClick={() => {
+                          if (isBlocked(item)) {
+                            window.alert("依存タスクが未完了のため移動できません。");
+                            return;
+                          }
+                          moveToSprint(item.id);
+                        }}
                       >
                         スプリントに送る
                       </button>
@@ -467,6 +551,24 @@ export default function BacklogPage() {
                         #{item.tags.join(" #")}
                       </span>
                     ) : null}
+                    {item.dependencies && item.dependencies.length > 0 ? (
+                      <span
+                        className={`border px-2 py-1 ${
+                          isBlocked(item)
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : "border-slate-200 bg-white"
+                        }`}
+                      >
+                        依存:{" "}
+                        {item.dependencies
+                          .map((dep) =>
+                            dep.status === TASK_STATUS.DONE
+                              ? dep.title
+                              : `${dep.title}*`,
+                          )
+                          .join(", ")}
+                      </span>
+                    ) : null}
                   </div>
                   {splitMap[item.id]?.length ? (
                     <div className="mt-3 border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
@@ -506,12 +608,23 @@ export default function BacklogPage() {
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-900">自動分解済み (元タスク)</h2>
               <span className="text-xs text-slate-500">
-                {items.filter((item) => item.tags?.includes(SPLIT_PARENT_TAG)).length} 件
+                {
+                  items.filter(
+                    (item) =>
+                      item.tags?.includes(SPLIT_PARENT_TAG) &&
+                      !item.tags?.includes(PENDING_APPROVAL_TAG),
+                  ).length
+                }{" "}
+                件
               </span>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {items
-                .filter((item) => item.tags?.includes(SPLIT_PARENT_TAG))
+                .filter(
+                  (item) =>
+                    item.tags?.includes(SPLIT_PARENT_TAG) &&
+                    !item.tags?.includes(PENDING_APPROVAL_TAG),
+                )
                 .map((item) => (
                   <div
                     key={item.id}

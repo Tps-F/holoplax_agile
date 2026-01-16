@@ -1,20 +1,16 @@
 import prisma from "./prisma";
 import { generateSplitSuggestions } from "./ai-suggestions";
 import { TASK_STATUS } from "./types";
+import {
+  DELEGATE_TAG,
+  PENDING_APPROVAL_TAG,
+  SPLIT_CHILD_TAG,
+  SPLIT_PARENT_TAG,
+  withTag,
+} from "./automation-constants";
 
 const scoreFromPoints = (points: number) =>
   Math.min(100, Math.max(0, Math.round(points * 9)));
-
-const DELEGATE_TAG = "auto-delegate";
-const SPLIT_PARENT_TAG = "auto-split-parent";
-const SPLIT_CHILD_TAG = "auto-split-child";
-const PENDING_APPROVAL_TAG = "automation-needs-approval";
-
-const withTag = (tags: string[], tag: string) => {
-  const set = new Set(tags ?? []);
-  set.add(tag);
-  return Array.from(set);
-};
 
 const requireApproval = process.env.AUTOMATION_REQUIRE_APPROVAL === "true";
 
