@@ -8,6 +8,7 @@ import {
 } from "../../../../../lib/api-response";
 import { logAudit } from "../../../../../lib/audit";
 import prisma from "../../../../../lib/prisma";
+import { UserRole } from "@prisma/client";
 
 export async function PATCH(
   request: Request,
@@ -30,7 +31,7 @@ export async function PATCH(
     const updated = await prisma.user.update({
       where: { id },
       data: {
-        role: nextRole ?? undefined,
+        role: nextRole as UserRole ?? undefined,
         disabledAt: typeof disabled === "boolean" ? (disabled ? new Date() : null) : undefined,
       },
       select: { id: true, name: true, email: true, role: true, disabledAt: true },

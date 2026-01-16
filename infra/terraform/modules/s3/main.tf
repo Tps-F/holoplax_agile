@@ -16,9 +16,10 @@ resource "aws_s3_bucket_public_access_block" "this" {
 }
 
 resource "aws_s3_bucket_policy" "public_read" {
-  count  = var.public_read ? 1 : 0
-  bucket = aws_s3_bucket.this.id
-  policy = data.aws_iam_policy_document.public_read[0].json
+  count      = var.public_read ? 1 : 0
+  bucket     = aws_s3_bucket.this.id
+  policy     = data.aws_iam_policy_document.public_read[0].json
+  depends_on = [aws_s3_bucket_public_access_block.this]
 }
 
 data "aws_iam_policy_document" "public_read" {

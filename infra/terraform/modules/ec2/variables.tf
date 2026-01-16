@@ -48,6 +48,16 @@ variable "s3_bucket_arn" {
   default = null
 }
 
+variable "enable_s3_access" {
+  type    = bool
+  default = false
+}
+
+variable "enable_alb" {
+  type    = bool
+  default = false
+}
+
 variable "secrets_arns" {
   type    = list(string)
   default = []

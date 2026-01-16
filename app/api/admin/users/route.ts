@@ -10,6 +10,7 @@ import {
 } from "../../../../lib/api-response";
 import { logAudit } from "../../../../lib/audit";
 import prisma from "../../../../lib/prisma";
+import { UserRole } from "@prisma/client";
 
 export async function GET() {
   try {
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
       data: {
         email,
         name: name || null,
-        role: nextRole,
+        role: nextRole as UserRole,
         emailVerified: new Date(),
         password: { create: { hash: hashed } },
       },

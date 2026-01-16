@@ -29,7 +29,7 @@ data "aws_iam_policy_document" "assume_role" {
 }
 
 data "aws_iam_policy_document" "s3_access" {
-  count = var.s3_bucket_arn == null ? 0 : 1
+  count = var.enable_s3_access ? 1 : 0
 
   statement {
     actions = [
@@ -64,7 +64,7 @@ resource "aws_iam_role_policy_attachment" "ssm" {
 }
 
 resource "aws_iam_role_policy" "s3" {
-  count  = var.s3_bucket_arn == null ? 0 : 1
+  count  = var.enable_s3_access ? 1 : 0
   name   = "${var.name_prefix}-s3-access"
   role   = aws_iam_role.ec2.id
   policy = data.aws_iam_policy_document.s3_access[0].json
@@ -126,7 +126,7 @@ resource "aws_instance" "app" {
 }
 
 resource "aws_lb_target_group_attachment" "app" {
-  count            = var.target_group_arn == null ? 0 : 1
+  count            = var.enable_alb ? 1 : 0
   target_group_arn = var.target_group_arn
   target_id        = aws_instance.app.id
   port             = var.app_port
