@@ -71,7 +71,7 @@ module "ec2" {
   alb_security_group_id  = module.alb.security_group_id
   target_group_arn       = module.alb.target_group_arn
   s3_bucket_arn          = module.s3.bucket_arn
-  secrets_arns           = [aws_secretsmanager_secret.db.arn]
+  secrets_arns           = [aws_secretsmanager_secret.db.arn, aws_secretsmanager_secret.openai.arn]
 }
 
 module "rds" {
@@ -90,6 +90,10 @@ module "rds" {
 
 resource "aws_secretsmanager_secret" "db" {
   name = "${var.name_prefix}-db-secret"
+}
+
+resource "aws_secretsmanager_secret" "openai" {
+  name = "${var.name_prefix}-openai-secret"
 }
 
 resource "aws_secretsmanager_secret_version" "db" {
@@ -113,6 +117,10 @@ output "db_endpoint" {
 
 output "db_secret_arn" {
   value = aws_secretsmanager_secret.db.arn
+}
+
+output "openai_secret_arn" {
+  value = aws_secretsmanager_secret.openai.arn
 }
 
 output "s3_bucket_name" {

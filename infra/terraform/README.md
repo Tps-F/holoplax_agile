@@ -8,6 +8,7 @@ This Terraform set provisions a simple AWS stack for dev/staging/prod in `ap-nor
 - RDS PostgreSQL (private)
 - S3 bucket for avatars (public read by default)
 - Secrets Manager entry for DB credentials
+- Secrets Manager entry for OpenAI API key (empty by default)
 
 ## Environments
 Each environment lives under `envs/{dev,staging,prod}`.
@@ -25,6 +26,7 @@ terraform apply
 - This setup uses **HTTP only** (no TLS). Add ACM + HTTPS listener if you need HTTPS.
 - EC2 runs in a public subnet for simplicity. If you want a private subnet + NAT, we can add it.
 - DB credentials are stored in Secrets Manager; EC2 has permission to read the secret.
+- OpenAI key secret is created without a value. Set it manually in AWS console/CLI.
 
 ## User data
 You can pass `user_data` to install Node/Docker and run the app. Example in `terraform.tfvars`:
