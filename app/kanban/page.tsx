@@ -117,7 +117,7 @@ export default function KanbanPage() {
   return (
     <div className="relative min-h-screen bg-white">
       <Sidebar />
-      <main className="min-w-0 flex-1 space-y-6 px-4 py-10 lg:ml-60 lg:px-6 lg:py-14">
+      <main className="max-w-6xl min-w-0 flex-1 space-y-6 px-4 py-10 lg:ml-60 lg:px-6 lg:py-14">
         <header className="border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Kanban</p>
@@ -171,8 +171,8 @@ export default function KanbanPage() {
                       </p>
                       <span
                         className={`shrink-0 border px-2 py-0.5 text-[10px] font-semibold ${isAiTask(item)
-                            ? "border-amber-200 bg-amber-50 text-amber-700"
-                            : "border-slate-200 bg-white text-slate-600"
+                          ? "border-amber-200 bg-amber-50 text-amber-700"
+                          : "border-slate-200 bg-white text-slate-600"
                           }`}
                       >
                         {isAiTask(item) ? "AI" : "人"}

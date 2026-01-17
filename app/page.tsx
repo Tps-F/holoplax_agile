@@ -174,7 +174,7 @@ export default async function Home() {
     <div className="relative min-h-screen bg-white">
       <Sidebar />
 
-      <main className="flex-1 space-y-6 px-4 py-10 lg:ml-60 lg:px-6 lg:py-14">
+      <main className="max-w-6xl flex-1 space-y-6 px-4 py-10 lg:ml-60 lg:px-6 lg:py-14">
         <header className="border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 p-6 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="space-y-2">
