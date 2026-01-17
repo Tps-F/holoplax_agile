@@ -13,6 +13,13 @@ enum TaskStatus {
   DONE
 }
 
+enum TaskType {
+  EPIC
+  PBI
+  TASK
+  ROUTINE
+}
+
 enum AiSuggestionType {
   TIP
   SCORE
@@ -185,6 +192,8 @@ model Task {
   urgency      String
   risk         String
   status       TaskStatus       @default(BACKLOG)
+  type         TaskType         @default(PBI)
+  parentId     String?
   sprintId     String?
   dueDate      DateTime?
   assigneeId   String?
@@ -198,8 +207,12 @@ model Task {
   user         User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspaceId  String?
   workspace    Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  parent       Task?            @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Task[]           @relation("TaskHierarchy")
   dependencies TaskDependency[] @relation("TaskDependencies")
   dependents   TaskDependency[] @relation("TaskDependents")
+
+  @@index([parentId])
 }
 
 model VelocityEntry {

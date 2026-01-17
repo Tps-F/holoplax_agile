@@ -2,7 +2,7 @@ import { ok, unauthorized, unauthorizedWithMessage } from "../../../../lib/api-r
 import { applyAutomationForTask } from "../../../../lib/automation";
 import { verifySlackSignature } from "../../../../lib/integrations/auth";
 import prisma from "../../../../lib/prisma";
-import { TASK_STATUS } from "../../../../lib/types";
+import { TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 const getEnv = (key: string) => {
@@ -74,6 +74,7 @@ export async function POST(request: Request) {
       urgency: "中",
       risk: "中",
       status: TASK_STATUS.BACKLOG,
+      type: TASK_TYPE.PBI,
       workspace: { connect: { id: workspaceId } },
       user: userEnv ? { connect: { id: userEnv } } : undefined,
     },

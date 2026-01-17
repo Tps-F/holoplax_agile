@@ -1,6 +1,6 @@
 import prisma from "./prisma";
 import { generateSplitSuggestions } from "./ai-suggestions";
-import { TASK_STATUS } from "./types";
+import { TASK_STATUS, TASK_TYPE } from "./types";
 import {
   DELEGATE_TAG,
   NO_DELEGATE_TAG,
@@ -218,6 +218,8 @@ export async function applyAutomationForTask(params: {
             risk: item.risk ?? "中",
             status: TASK_STATUS.BACKLOG,
             tags: withTag([], SPLIT_CHILD_TAG),
+            type: TASK_TYPE.TASK,
+            parentId: current.id,
             workspace: { connect: { id: workspaceId } },
             user: { connect: { id: userId } },
           },

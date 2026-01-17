@@ -16,7 +16,7 @@ import {
   withoutTags,
 } from "../../../../lib/automation-constants";
 import prisma from "../../../../lib/prisma";
-import { TASK_STATUS } from "../../../../lib/types";
+import { TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 type SplitSuggestion = {
@@ -122,6 +122,8 @@ export async function POST(request: Request) {
               risk: item.risk ?? "中",
               status: TASK_STATUS.BACKLOG,
               tags: withTag([], SPLIT_CHILD_TAG),
+              type: TASK_TYPE.TASK,
+              parentId: task.id,
               workspace: { connect: { id: workspaceId } },
               user: { connect: { id: userId } },
             },
