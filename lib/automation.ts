@@ -43,7 +43,7 @@ const llmDelegationDecision = async (task: {
       maxTokens: 80,
     });
     if (!result) return null;
-    const usageMeta = result.usage
+    const usageMeta = result
       ? buildAiUsageMetadata(result.provider, result.model, result.usage)
       : null;
     if (!result.content) return { usageMeta };
@@ -161,22 +161,24 @@ export async function applyAutomationForTask(params: {
     description: current.description,
     points: current.points,
   });
-  const usageMeta = buildAiUsageMetadata(
-    splitResult.provider,
-    splitResult.model,
-    splitResult.usage,
-  );
-  if (usageMeta) {
-    await logAudit({
-      actorId: userId,
-      action: "AI_SPLIT",
-      targetWorkspaceId: workspaceId,
-      metadata: {
-        ...usageMeta,
-        taskId: current.id,
-        source: "automation",
-      },
-    });
+  if (splitResult.source === "provider") {
+    const usageMeta = buildAiUsageMetadata(
+      splitResult.provider,
+      splitResult.model,
+      splitResult.usage,
+    );
+    if (usageMeta) {
+      await logAudit({
+        actorId: userId,
+        action: "AI_SPLIT",
+        targetWorkspaceId: workspaceId,
+        metadata: {
+          ...usageMeta,
+          taskId: current.id,
+          source: "automation",
+        },
+      });
+    }
   }
   const suggestions = splitResult.suggestions;
 

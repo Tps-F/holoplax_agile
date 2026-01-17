@@ -105,22 +105,24 @@ export async function POST(request: Request) {
       latest?.output ?? null,
       fallbackResult.suggestions,
     );
-    const usageMeta = buildAiUsageMetadata(
-      fallbackResult.provider,
-      fallbackResult.model,
-      fallbackResult.usage,
-    );
-    if (usageMeta) {
-      await logAudit({
-        actorId: userId,
-        action: "AI_SPLIT",
-        targetWorkspaceId: workspaceId,
-        metadata: {
-          ...usageMeta,
-          taskId: task.id,
-          source: "approval",
-        },
-      });
+    if (fallbackResult.source === "provider") {
+      const usageMeta = buildAiUsageMetadata(
+        fallbackResult.provider,
+        fallbackResult.model,
+        fallbackResult.usage,
+      );
+      if (usageMeta) {
+        await logAudit({
+          actorId: userId,
+          action: "AI_SPLIT",
+          targetWorkspaceId: workspaceId,
+          metadata: {
+            ...usageMeta,
+            taskId: task.id,
+            source: "approval",
+          },
+        });
+      }
     }
 
     await prisma.$transaction(async (tx) => {

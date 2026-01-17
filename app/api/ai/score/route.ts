@@ -62,7 +62,7 @@ export async function POST(request: Request) {
         user: `以下を見積もり、JSONで返してください: { "points": number(1-13), "urgency": "低|中|高", "risk": "低|中|高", "score": number(0-100), "reason": string }。\nタイトル: ${title}\n説明: ${description}`,
         maxTokens: 120,
       });
-      if (result?.usage) {
+      if (result) {
         const usageMeta = buildAiUsageMetadata(
           result.provider,
           result.model,

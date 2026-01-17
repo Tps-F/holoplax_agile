@@ -41,18 +41,20 @@ export async function POST(request: Request) {
       description,
       points,
     });
-    const usageMeta = buildAiUsageMetadata(result.provider, result.model, result.usage);
-    if (usageMeta) {
-      await logAudit({
-        actorId: userId,
-        action: "AI_SPLIT",
-        targetWorkspaceId: workspaceId,
-        metadata: {
-          ...usageMeta,
-          taskId,
-          source: "ai-split",
-        },
-      });
+    if (result.source === "provider") {
+      const usageMeta = buildAiUsageMetadata(result.provider, result.model, result.usage);
+      if (usageMeta) {
+        await logAudit({
+          actorId: userId,
+          action: "AI_SPLIT",
+          targetWorkspaceId: workspaceId,
+          metadata: {
+            ...usageMeta,
+            taskId,
+            source: "ai-split",
+          },
+        });
+      }
     }
 
     await prisma.aiSuggestion.create({

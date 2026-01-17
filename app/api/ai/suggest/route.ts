@@ -71,7 +71,7 @@ export async function POST(request: Request) {
         user: `タスクを短く分解し、緊急度や依存を意識した提案を1文でください: ${title}`,
         maxTokens: 80,
       });
-      if (result?.usage) {
+      if (result) {
         const usageMeta = buildAiUsageMetadata(
           result.provider,
           result.model,
