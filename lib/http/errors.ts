@@ -71,3 +71,21 @@ export const errorResponse = (
   const { status, envelope } = toErrorResult(error, fallback);
   return NextResponse.json(envelope, { status });
 };
+
+export const createDomainErrors = (domain: string) => {
+  const code = (suffix: string) => `${domain}_${suffix}`;
+  return {
+    badRequest: (message: string, details?: unknown) =>
+      errorResponse(new AppError(code("BAD_REQUEST"), message, 400, details)),
+    unauthorized: (message = "unauthorized", details?: unknown) =>
+      errorResponse(new AppError(code("UNAUTHORIZED"), message, 401, details)),
+    forbidden: (message = "forbidden", details?: unknown) =>
+      errorResponse(new AppError(code("FORBIDDEN"), message, 403, details)),
+    notFound: (message = "not found", details?: unknown) =>
+      errorResponse(new AppError(code("NOT_FOUND"), message, 404, details)),
+    conflict: (message: string, details?: unknown) =>
+      errorResponse(new AppError(code("CONFLICT"), message, 409, details)),
+    internal: (message = "internal error", details?: unknown) =>
+      errorResponse(new AppError(code("INTERNAL"), message, 500, details)),
+  };
+};

@@ -7,6 +7,15 @@ const taskTypeValues = Object.values(TASK_TYPE) as [string, ...string[]];
 export const TaskStatusSchema = z.enum(taskStatusValues);
 export const TaskTypeSchema = z.enum(taskTypeValues);
 
+const toStringOrEmpty = (value: unknown) => (value == null ? "" : String(value));
+const nullableId = z
+  .preprocess((value) => {
+    if (value == null) return null;
+    const text = String(value).trim();
+    return text.length ? text : null;
+  }, z.string().trim().min(1).nullable())
+  .optional();
+
 const pointsAllowed = [1, 2, 3, 5, 8, 13, 21, 34] as const;
 export const TaskPointsSchema = z
   .coerce
@@ -34,15 +43,15 @@ export const TaskCreateSchema = z
     points: TaskPointsSchema,
     urgency: z.string().optional(),
     risk: z.string().optional(),
-    status: TaskStatusSchema.optional(),
-    type: TaskTypeSchema.optional(),
-    parentId: z.string().optional().nullable(),
-    dueDate: z.string().optional().nullable(),
-    assigneeId: z.string().optional().nullable(),
-    tags: z.array(z.string()).optional(),
-    dependencyIds: z.array(z.string()).optional(),
-    routineCadence: z.enum(["DAILY", "WEEKLY", "NONE"]).optional().nullable(),
-    routineNextAt: z.string().optional().nullable(),
+    status: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
+    type: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
+    parentId: nullableId,
+    dueDate: z.preprocess(toStringOrEmpty, z.string().trim()).optional().nullable(),
+    assigneeId: nullableId,
+    tags: z.array(z.any()).optional(),
+    dependencyIds: z.array(z.any()).optional(),
+    routineCadence: z.preprocess(toStringOrEmpty, z.string().trim()).optional().nullable(),
+    routineNextAt: z.preprocess(toStringOrEmpty, z.string().trim()).optional().nullable(),
   })
   .passthrough();
 
@@ -55,14 +64,14 @@ export const TaskUpdateSchema = z
     points: TaskPointsSchema.optional(),
     urgency: z.string().optional(),
     risk: z.string().optional(),
-    status: TaskStatusSchema.optional(),
-    type: TaskTypeSchema.optional(),
-    parentId: z.string().optional().nullable(),
-    dueDate: z.string().optional().nullable(),
-    assigneeId: z.string().optional().nullable(),
-    tags: z.array(z.string()).optional(),
-    dependencyIds: z.array(z.string()).optional(),
-    routineCadence: z.enum(["DAILY", "WEEKLY", "NONE"]).optional().nullable(),
-    routineNextAt: z.string().optional().nullable(),
+    status: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
+    type: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
+    parentId: nullableId,
+    dueDate: z.preprocess(toStringOrEmpty, z.string().trim()).optional().nullable(),
+    assigneeId: nullableId,
+    tags: z.array(z.any()).optional(),
+    dependencyIds: z.array(z.any()).optional(),
+    routineCadence: z.preprocess(toStringOrEmpty, z.string().trim()).optional().nullable(),
+    routineNextAt: z.preprocess(toStringOrEmpty, z.string().trim()).optional().nullable(),
   })
   .passthrough();
