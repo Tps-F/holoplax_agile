@@ -150,7 +150,7 @@ export default function KanbanPage() {
     if (!res.ok) {
       setItems(originalItems);
       const errorData = await res.json().catch(() => ({}));
-      const message = errorData.message || errorData.error || "移動に失敗しました。";
+      const message = JSON.stringify(errorData.message || errorData.error || "移動に失敗しました。");
       if (message.includes("active sprint not found")) {
         window.alert("アクティブなスプリントがありません。スプリントを開始してください。");
       } else if (message.includes("sprint capacity exceeded")) {
