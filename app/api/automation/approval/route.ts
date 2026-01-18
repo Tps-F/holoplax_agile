@@ -96,6 +96,13 @@ export async function POST(request: Request) {
       title: task.title,
       description: task.description ?? "",
       points: task.points,
+      context: {
+        action: "AI_SPLIT",
+        userId,
+        workspaceId,
+        taskId: task.id,
+        source: "approval",
+      },
     });
     const suggestions = parseSuggestions(
       latest?.output ?? null,

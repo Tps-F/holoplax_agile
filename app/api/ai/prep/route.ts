@@ -109,6 +109,13 @@ export async function POST(request: Request) {
         system: prompt.system,
         user: prompt.user(task.title, task.description ?? ""),
         maxTokens: 220,
+        context: {
+          action: "AI_PREP",
+          userId,
+          workspaceId,
+          taskId,
+          source: `ai-prep:${type}`,
+        },
       });
       if (result) {
         const usageMeta = buildAiUsageMetadata(

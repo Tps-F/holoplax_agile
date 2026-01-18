@@ -61,6 +61,13 @@ export async function POST(request: Request) {
           "あなたはアジャイルなタスク見積もりアシスタントです。JSONのみで返してください。",
         user: `以下を見積もり、JSONで返してください: { "points": number(1-13), "urgency": "低|中|高", "risk": "低|中|高", "score": number(0-100), "reason": string }。\nタイトル: ${title}\n説明: ${description}`,
         maxTokens: 120,
+        context: {
+          action: "AI_SCORE",
+          userId,
+          workspaceId,
+          taskId,
+          source: "ai-score",
+        },
       });
       if (result) {
         const usageMeta = buildAiUsageMetadata(

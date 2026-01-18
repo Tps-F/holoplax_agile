@@ -1,4 +1,5 @@
 import { requestAiChat } from "./ai-provider";
+import type { AiUsageContext } from "./ai-usage";
 import { storyPointOptions } from "./points";
 
 const getNearestStoryPoint = (val: number) => {
@@ -51,8 +52,9 @@ export async function generateSplitSuggestions(params: {
   title: string;
   description: string;
   points: number;
+  context?: AiUsageContext;
 }): Promise<SplitSuggestionResult> {
-  const { title, description, points } = params;
+  const { title, description, points, context } = params;
   let suggestions = fallbackSplit(title, description, points);
   let usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;
   let usedAi = false;
@@ -64,6 +66,7 @@ export async function generateSplitSuggestions(params: {
       system: "あなたはタスク分解アシスタントです。JSON配列のみで返してください。",
       user: `以下のタスクを2-4件に分解し、JSON配列で返してください: [{ "title": string, "points": number, "urgency": "低|中|高", "risk": "低|中|高", "detail": string }]\nポイントは必ずフィボナッチ数(1, 2, 3, 5, 8, 13, 21, 34)から選んでください。\nタイトル: ${title}\n説明: ${description}\nポイント: ${points}`,
       maxTokens: 220,
+      context,
     });
     if (result?.content) {
       usedAi = true;

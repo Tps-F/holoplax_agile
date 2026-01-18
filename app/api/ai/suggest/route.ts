@@ -70,6 +70,13 @@ export async function POST(request: Request) {
         system: "あなたはアジャイルなタスク分解のアシスタントです。",
         user: `タスクを短く分解し、緊急度や依存を意識した提案を1文でください: ${title}`,
         maxTokens: 80,
+        context: {
+          action: "AI_SUGGEST",
+          userId,
+          workspaceId,
+          taskId,
+          source: "ai-suggest",
+        },
       });
       if (result) {
         const usageMeta = buildAiUsageMetadata(

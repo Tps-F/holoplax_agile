@@ -40,6 +40,13 @@ export async function POST(request: Request) {
       title,
       description,
       points,
+      context: {
+        action: "AI_SPLIT",
+        userId,
+        workspaceId,
+        taskId,
+        source: "ai-split",
+      },
     });
     if (result.source === "provider") {
       const usageMeta = buildAiUsageMetadata(result.provider, result.model, result.usage);

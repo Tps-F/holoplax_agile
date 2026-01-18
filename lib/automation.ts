@@ -2,6 +2,7 @@ import prisma from "./prisma";
 import { generateSplitSuggestions } from "./ai-suggestions";
 import { requestAiChat } from "./ai-provider";
 import { buildAiUsageMetadata } from "./ai-usage";
+import type { AiUsageContext } from "./ai-usage";
 import { logAudit } from "./audit";
 import { TASK_STATUS, TASK_TYPE } from "./types";
 import {
@@ -31,16 +32,20 @@ const extractJson = (text: string) => {
   return text;
 };
 
-const llmDelegationDecision = async (task: {
-  title: string;
-  description: string;
-}) => {
+const llmDelegationDecision = async (
+  task: {
+    title: string;
+    description: string;
+  },
+  context?: AiUsageContext,
+) => {
   try {
     const result = await requestAiChat({
       system:
         "あなたはタスクのAI委任判定アシスタントです。個人の学習/暗記/練習など本人がやるべき作業は委任不可。JSONのみで返してください。",
       user: `次のタスクをAI委任キューに入れるべきか判定し、JSONで返してください: { "delegatable": boolean, "reason": string }。\nタイトル: ${task.title}\n説明: ${task.description}`,
       maxTokens: 80,
+      context,
     });
     if (!result) return null;
     const usageMeta = result
@@ -67,7 +72,13 @@ const shouldDelegate = async (
   context?: { userId: string; workspaceId: string },
 ) => {
   if (task.tags?.includes(NO_DELEGATE_TAG)) return false;
-  const aiDecision = await llmDelegationDecision(task);
+  const aiDecision = await llmDelegationDecision(task, {
+    action: "AI_DELEGATE",
+    userId: context?.userId ?? null,
+    workspaceId: context?.workspaceId ?? null,
+    taskId: task.id,
+    source: "automation",
+  });
   if (context && aiDecision?.usageMeta) {
     await logAudit({
       actorId: context.userId,
@@ -160,6 +171,13 @@ export async function applyAutomationForTask(params: {
     title: current.title,
     description: current.description,
     points: current.points,
+    context: {
+      action: "AI_SPLIT",
+      userId,
+      workspaceId,
+      taskId: current.id,
+      source: "automation",
+    },
   });
   if (splitResult.source === "provider") {
     const usageMeta = buildAiUsageMetadata(
