@@ -16,6 +16,12 @@ type MemberRow = {
   role: string;
 };
 
+type SprintInfo = {
+  id: string;
+  name: string;
+  status: string;
+} | null;
+
 type Column = {
   key: TaskStatus;
   label: string;
@@ -39,6 +45,7 @@ export default function KanbanPage() {
   const { workspaceId, ready } = useWorkspaceId();
   const [items, setItems] = useState<TaskDTO[]>([]);
   const [members, setMembers] = useState<MemberRow[]>([]);
+  const [sprint, setSprint] = useState<SprintInfo>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverColumn, setHoverColumn] = useState<TaskStatus | null>(null);
   const aiTags = useMemo(
@@ -78,11 +85,27 @@ export default function KanbanPage() {
     setMembers(data.members ?? []);
   }, [ready, workspaceId]);
 
+  const fetchSprint = useCallback(async () => {
+    if (!ready || !workspaceId) {
+      setSprint(null);
+      return;
+    }
+    const res = await fetch(`/api/sprints?status=ACTIVE`);
+    if (!res.ok) {
+      setSprint(null);
+      return;
+    }
+    const data = await res.json();
+    const activeSprint = data.sprints?.[0] ?? null;
+    setSprint(activeSprint);
+  }, [ready, workspaceId]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchTasks();
     void fetchMembers();
-  }, [fetchTasks, fetchMembers]);
+    void fetchSprint();
+  }, [fetchTasks, fetchMembers, fetchSprint]);
 
   const grouped = useMemo(() => {
     const map: Record<TaskStatus, TaskDTO[]> = {
@@ -114,16 +137,33 @@ export default function KanbanPage() {
       }
     }
     setHoverColumn(null);
+    const originalItems = [...items];
     setItems((prev) =>
       prev.map((item) => (item.id === draggingId ? { ...item, status } : item)),
     );
     setDraggingId(null);
-    await fetch(`/api/tasks/${draggingId}`, {
+    const res = await fetch(`/api/tasks/${draggingId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status }),
     });
+    if (!res.ok) {
+      setItems(originalItems);
+      const errorData = await res.json().catch(() => ({}));
+      const message = errorData.message || errorData.error || "移動に失敗しました。";
+      if (message.includes("active sprint not found")) {
+        window.alert("アクティブなスプリントがありません。スプリントを開始してください。");
+      } else if (message.includes("sprint capacity exceeded")) {
+        window.alert("スプリントの容量を超えています。");
+      } else if (message.includes("dependencies must be done")) {
+        window.alert("依存タスクが未完了のため移動できません。");
+      } else {
+        window.alert(message);
+      }
+      return;
+    }
     await fetchTasks();
+    await fetchSprint();
   };
 
   return (
@@ -153,8 +193,16 @@ export default function KanbanPage() {
           >
             <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-3">
               <div>
-                <h2 className="text-sm font-semibold text-slate-900">{col.label}</h2>
-                <p className="text-xs text-slate-500">{col.hint}</p>
+                <h2 className="text-sm font-semibold text-slate-900">
+                  {col.key === TASK_STATUS.SPRINT && sprint
+                    ? `スプリント: ${sprint.name}`
+                    : col.label}
+                </h2>
+                <p className="text-xs text-slate-500">
+                  {col.key === TASK_STATUS.SPRINT && !sprint
+                    ? "アクティブなスプリントがありません"
+                    : col.hint}
+                </p>
               </div>
               <span className="border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-600">
                 {grouped[col.key].length}
