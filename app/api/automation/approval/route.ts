@@ -82,10 +82,6 @@ export async function POST(request: Request) {
       return ok({ status: "rejected" });
     }
 
-    // approve path
-    if (task.tags?.includes(SPLIT_PARENT_TAG)) {
-      return ok({ status: "already-approved", created: 0 });
-    }
     if (!task.tags?.includes(PENDING_APPROVAL_TAG)) {
       return ok({ status: "no-pending", created: 0 });
     }
