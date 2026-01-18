@@ -1,7 +1,18 @@
+import { calculateAiUsageCost, loadAiPricingTable } from "./ai-pricing";
+import prisma from "./prisma";
+
 export type OpenAiUsage = {
   prompt_tokens?: number;
   completion_tokens?: number;
   total_tokens?: number;
+};
+
+export type AiUsageContext = {
+  action: string;
+  userId?: string | null;
+  workspaceId?: string | null;
+  taskId?: string | null;
+  source?: string | null;
 };
 
 export type AiUsageMetadata = {
@@ -50,4 +61,44 @@ export function buildAiUsageMetadata(
     costUsd: null,
     usageSource: hasTokens ? "reported" : "unknown",
   };
+}
+
+export async function recordAiUsage(params: {
+  provider: string;
+  model: string;
+  usage?: OpenAiUsage | null;
+  context: AiUsageContext;
+}): Promise<void> {
+  const usageMeta = buildAiUsageMetadata(params.provider, params.model, params.usage);
+  if (!usageMeta) return;
+
+  try {
+    const { table } = await loadAiPricingTable();
+    const { costUsd } = calculateAiUsageCost({
+      pricingTable: table,
+      provider: usageMeta.provider,
+      model: usageMeta.model,
+      promptTokens: usageMeta.promptTokens,
+      completionTokens: usageMeta.completionTokens,
+    });
+
+    await prisma.aiUsage.create({
+      data: {
+        action: params.context.action,
+        provider: usageMeta.provider,
+        model: usageMeta.model,
+        promptTokens: usageMeta.promptTokens ?? undefined,
+        completionTokens: usageMeta.completionTokens ?? undefined,
+        totalTokens: usageMeta.totalTokens ?? undefined,
+        costUsd: costUsd ?? undefined,
+        usageSource: usageMeta.usageSource,
+        source: params.context.source ?? null,
+        taskId: params.context.taskId ?? null,
+        userId: params.context.userId ?? null,
+        workspaceId: params.context.workspaceId ?? null,
+      },
+    });
+  } catch {
+    // Usage logging should not block core flows.
+  }
 }
