@@ -82,9 +82,9 @@ export default function SprintPage() {
       setItems([]);
       return;
     }
-    const res = await fetch("/api/tasks");
+    const res = await fetch("/api/tasks?status=SPRINT&limit=200");
     const data = await res.json();
-    setItems((data.tasks ?? []).filter((t: TaskDTO) => t.status !== TASK_STATUS.BACKLOG));
+    setItems(data.tasks ?? []);
   }, [ready, workspaceId]);
 
   const fetchSprint = useCallback(async () => {

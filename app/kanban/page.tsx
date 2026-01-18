@@ -69,7 +69,9 @@ export default function KanbanPage() {
       setItems([]);
       return;
     }
-    const res = await fetch("/api/tasks");
+    const res = await fetch(
+      "/api/tasks?status=BACKLOG&status=SPRINT&status=DONE&limit=400",
+    );
     const data = await res.json();
     setItems(data.tasks ?? []);
   }, [ready, workspaceId]);

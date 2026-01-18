@@ -10,7 +10,8 @@ import { TaskCreateSchema } from "../../../lib/contracts/task";
 import { createDomainErrors } from "../../../lib/http/errors";
 import { parseBody } from "../../../lib/http/validation";
 import prisma from "../../../lib/prisma";
-import { TASK_STATUS, TASK_TYPE } from "../../../lib/types";
+import { TASK_STATUS, TASK_TYPE, SEVERITY } from "../../../lib/types";
+import { normalizeSeverity } from "../../../lib/ai-normalization";
 import { mapTaskWithDependencies } from "../../../lib/mappers/task";
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>
@@ -49,7 +50,7 @@ const nextRoutineAt = (cadence: "DAILY" | "WEEKLY", base: Date) => {
 };
 const errors = createDomainErrors("TASK");
 
-export async function GET() {
+export async function GET(request: Request) {
   return withApiHandler(
     {
       logLabel: "GET /api/tasks",
@@ -64,9 +65,25 @@ export async function GET() {
       if (!workspaceId) {
         return ok({ tasks: [] });
       }
+      const { searchParams } = new URL(request.url);
+      const rawStatuses = searchParams
+        .getAll("status")
+        .map((value) => String(value ?? "").trim())
+        .filter(Boolean);
+      const statuses = rawStatuses.filter((value) => isTaskStatus(value));
+      const limitParam = Number(searchParams.get("limit") ?? "200");
+      const pageParam = Number(searchParams.get("page") ?? "0");
+      const take = Math.min(500, Math.max(10, Number.isFinite(limitParam) ? limitParam : 200));
+      const skip = Math.max(0, Number.isFinite(pageParam) ? pageParam : 0) * take;
+      const where: Prisma.TaskWhereInput = {
+        workspaceId,
+        ...(statuses.length ? { status: { in: statuses } } : {}),
+      };
       const tasks = await prisma.task.findMany({
-        where: { workspaceId },
+        where,
         orderBy: { createdAt: "desc" },
+        skip,
+        take,
         include: {
           routineRule: {
             select: { cadence: true, nextAt: true },
@@ -195,8 +212,8 @@ export async function POST(request: Request) {
           definitionOfDone: typeof definitionOfDone === "string" ? definitionOfDone : "",
           checklist: toNullableJsonInput(toChecklist(checklist)),
           points: Number(points),
-          urgency: urgency ?? "中",
-          risk: risk ?? "中",
+          urgency: normalizeSeverity(urgency),
+          risk: normalizeSeverity(risk),
           status: statusValue,
           dueDate: dueDate ? new Date(dueDate) : null,
           tags: Array.isArray(tags) ? tags.map((tag: string) => String(tag)) : [],

@@ -179,16 +179,30 @@ export default function BacklogPage() {
   const [prepFetchLoading, setPrepFetchLoading] = useState(false);
   const [prepActionLoadingId, setPrepActionLoadingId] = useState<string | null>(null);
 
+  const fetchTasksByStatus = useCallback(async (statuses: TaskStatus[]) => {
+    const params = statuses.map((status) => `status=${encodeURIComponent(status)}`).join("&");
+    const res = await fetch(`/api/tasks?${params}&limit=200`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.tasks ?? [];
+  }, []);
+
   const fetchTasks = useCallback(async () => {
     if (!ready) return;
     if (!workspaceId) {
       setItems([]);
       return;
     }
-    const res = await fetch("/api/tasks");
-    const data = await res.json();
-    setItems(data.tasks ?? []);
-  }, [ready, workspaceId]);
+    const [backlogTasks, sprintTasks] = await Promise.all([
+      fetchTasksByStatus([TASK_STATUS.BACKLOG]),
+      fetchTasksByStatus([TASK_STATUS.SPRINT]),
+    ]);
+    const mergedMap = new Map<string, TaskDTO>();
+    [...backlogTasks, ...sprintTasks].forEach((task) => {
+      mergedMap.set(task.id, task);
+    });
+    setItems(Array.from(mergedMap.values()));
+  }, [ready, workspaceId, fetchTasksByStatus]);
 
   const fetchMembers = useCallback(async () => {
     if (!ready || !workspaceId) {
