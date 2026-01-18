@@ -26,6 +26,19 @@ enum AiSuggestionType {
   SPLIT
 }
 
+enum AiPrepType {
+  EMAIL
+  IMPLEMENTATION
+  CHECKLIST
+}
+
+enum AiPrepStatus {
+  PENDING
+  APPROVED
+  APPLIED
+  REJECTED
+}
+
 enum AiProvider {
   OPENAI
   OPENAI_COMPATIBLE
@@ -259,6 +272,7 @@ model Task {
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   suggestions  AiSuggestion[]
+  prepOutputs  AiPrepOutput[]
   sprint       Sprint?          @relation(fields: [sprintId], references: [id], onDelete: SetNull)
   assignee     User?            @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   userId       String?
@@ -344,6 +358,23 @@ model AiSuggestion {
   user             User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspaceId      String?
   workspace        Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+model AiPrepOutput {
+  id          String       @id @default(uuid())
+  type        AiPrepType
+  status      AiPrepStatus @default(PENDING)
+  taskId      String
+  task        Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  output      String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  userId      String?
+  user        User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  workspace   Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
 }
 
 model Sprint {
