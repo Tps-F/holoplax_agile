@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 
 type AiSetting = {
-  provider: "OPENAI" | "ANTHROPIC" | "GEMINI";
   model: string;
   baseUrl: string;
   enabled: boolean;
@@ -11,29 +10,18 @@ type AiSetting = {
   source?: "db" | "env";
 };
 
-const providerOptions = [
-  { value: "OPENAI", label: "OpenAI" },
-  { value: "ANTHROPIC", label: "Anthropic" },
-  { value: "GEMINI", label: "Gemini" },
+const modelPresets = [
+  "gpt-4o-mini",
+  "gpt-4o",
+  "openai/gpt-4o-mini",
+  "anthropic/claude-3-5-sonnet-20240620",
+  "anthropic/claude-3-5-haiku-20241022",
+  "gemini/gemini-1.5-flash",
+  "gemini/gemini-1.5-pro",
 ];
 
-const modelPresets: Record<AiSetting["provider"], string[]> = {
-  OPENAI: ["gpt-4o-mini", "gpt-4o"],
-  ANTHROPIC: ["claude-3-5-sonnet-20240620", "claude-3-5-haiku-20241022"],
-  GEMINI: ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.0-flash"],
-};
-
-const modelDefaults: Record<AiSetting["provider"], string> = {
-  OPENAI: "gpt-4o-mini",
-  ANTHROPIC: "claude-3-5-sonnet-20240620",
-  GEMINI: "gemini-1.5-flash",
-};
-
-const baseUrlPlaceholders: Record<AiSetting["provider"], string> = {
-  OPENAI: "https://api.openai.com/v1",
-  ANTHROPIC: "https://api.anthropic.com",
-  GEMINI: "https://generativelanguage.googleapis.com",
-};
+const modelDefault = "gpt-4o-mini";
+const baseUrlPlaceholder = "http://localhost:4000";
 
 export default function AdminAiSettingsPage() {
   const [setting, setSetting] = useState<AiSetting | null>(null);
@@ -68,7 +56,6 @@ export default function AdminAiSettingsPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        provider: setting.provider,
         model: setting.model,
         baseUrl: setting.baseUrl,
         enabled: setting.enabled,
@@ -98,7 +85,7 @@ export default function AdminAiSettingsPage() {
             </p>
             <h1 className="text-3xl font-semibold text-slate-900">AI設定</h1>
             <p className="text-sm text-slate-600">
-              利用するモデルとAPIキーを選択します（グローバル）。
+              LiteLLM/OpenAI互換ゲートウェイのモデルとAPIキーを設定します。
             </p>
           </div>
           <button
@@ -120,39 +107,10 @@ export default function AdminAiSettingsPage() {
           <div className="grid gap-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="grid gap-1 text-xs text-slate-500">
-                プロバイダ
-                <select
-                  value={setting.provider}
-                  onChange={(e) => {
-                    const nextProvider = e.target.value as AiSetting["provider"];
-                    setSetting((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            provider: nextProvider,
-                            model: modelDefaults[nextProvider] ?? prev.model,
-                          }
-                        : prev,
-                    );
-                  }}
-                  className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                >
-                  {providerOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-1 text-xs text-slate-500">
                 モデル
                 <div className="grid gap-2">
                   <select
-                    value={
-                      modelPresets[setting.provider].includes(setting.model)
-                        ? setting.model
-                        : ""
-                    }
+                    value={modelPresets.includes(setting.model) ? setting.model : ""}
                     onChange={(e) =>
                       setSetting((prev) =>
                         prev ? { ...prev, model: e.target.value } : prev,
@@ -161,7 +119,7 @@ export default function AdminAiSettingsPage() {
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   >
                     <option value="">候補から選択</option>
-                    {modelPresets[setting.provider].map((model) => (
+                    {modelPresets.map((model) => (
                       <option key={model} value={model}>
                         {model}
                       </option>
@@ -172,23 +130,23 @@ export default function AdminAiSettingsPage() {
                     onChange={(e) =>
                       setSetting((prev) => (prev ? { ...prev, model: e.target.value } : prev))
                     }
-                    placeholder={modelDefaults[setting.provider]}
+                    placeholder={modelDefault}
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   />
                 </div>
               </label>
+              <label className="grid gap-1 text-xs text-slate-500">
+                Gateway Base URL（任意）
+                <input
+                  value={setting.baseUrl}
+                  onChange={(e) =>
+                    setSetting((prev) => (prev ? { ...prev, baseUrl: e.target.value } : prev))
+                  }
+                  placeholder={baseUrlPlaceholder}
+                  className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                />
+              </label>
             </div>
-            <label className="grid gap-1 text-xs text-slate-500">
-              Base URL（任意）
-              <input
-                value={setting.baseUrl}
-                onChange={(e) =>
-                  setSetting((prev) => (prev ? { ...prev, baseUrl: e.target.value } : prev))
-                }
-                placeholder={baseUrlPlaceholders[setting.provider]}
-                className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-              />
-            </label>
             <label className="grid gap-1 text-xs text-slate-500">
               APIキー（空欄なら変更しない）
               <input

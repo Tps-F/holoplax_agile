@@ -9,23 +9,23 @@ import {
 import { logAudit } from "../../../../lib/audit";
 import prisma from "../../../../lib/prisma";
 
-const PROVIDERS = ["OPENAI", "ANTHROPIC", "GEMINI"] as const;
-
-const DEFAULT_MODELS: Record<(typeof PROVIDERS)[number], string> = {
-  OPENAI: "gpt-4o-mini",
-  ANTHROPIC: "claude-3-5-sonnet-20240620",
-  GEMINI: "gemini-1.5-flash",
-};
-
-const normalizeProvider = (value: string) =>
-  value === "OPENAI_COMPATIBLE" ? "OPENAI" : value;
+const DEFAULT_MODEL = "gpt-4o-mini";
 
 const getEnvFallback = () => ({
-  provider: "OPENAI",
-  model: process.env.OPENAI_MODEL ?? DEFAULT_MODELS.OPENAI,
-  baseUrl: process.env.OPENAI_BASE_URL ?? "",
+  model:
+    process.env.AI_MODEL ??
+    process.env.LITELLM_MODEL ??
+    process.env.OPENAI_MODEL ??
+    DEFAULT_MODEL,
+  baseUrl:
+    process.env.AI_BASE_URL ??
+    process.env.LITELLM_BASE_URL ??
+    process.env.OPENAI_BASE_URL ??
+    "",
   enabled: false,
-  hasApiKey: Boolean(process.env.OPENAI_API_KEY),
+  hasApiKey: Boolean(
+    process.env.AI_API_KEY ?? process.env.LITELLM_API_KEY ?? process.env.OPENAI_API_KEY,
+  ),
   source: "env",
 });
 
@@ -37,14 +37,13 @@ export async function GET() {
     }
     const setting = await prisma.aiProviderSetting.findUnique({
       where: { id: 1 },
-      select: { provider: true, model: true, baseUrl: true, enabled: true, apiKey: true },
+      select: { model: true, baseUrl: true, enabled: true, apiKey: true },
     });
     if (!setting) {
       return ok({ setting: getEnvFallback() });
     }
     return ok({
       setting: {
-        provider: normalizeProvider(setting.provider),
         model: setting.model,
         baseUrl: setting.baseUrl ?? "",
         enabled: setting.enabled,
@@ -67,12 +66,13 @@ export async function POST(request: Request) {
       return forbidden();
     }
     const body = await request.json().catch(() => ({}));
-    const provider = normalizeProvider(String(body.provider ?? "").toUpperCase());
-    if (!PROVIDERS.includes(provider as (typeof PROVIDERS)[number])) {
-      return badRequest("invalid provider");
-    }
     const rawModel = String(body.model ?? "").trim();
-    const model = rawModel || DEFAULT_MODELS[provider as (typeof PROVIDERS)[number]];
+    const model =
+      rawModel ||
+      process.env.AI_MODEL ||
+      process.env.LITELLM_MODEL ||
+      process.env.OPENAI_MODEL ||
+      DEFAULT_MODEL;
     if (!model) {
       return badRequest("model is required");
     }
@@ -89,10 +89,11 @@ export async function POST(request: Request) {
       return badRequest("apiKey is required");
     }
 
+    const provider = "OPENAI";
     const setting = await prisma.aiProviderSetting.upsert({
       where: { id: 1 },
       update: {
-        provider: provider as (typeof PROVIDERS)[number],
+        provider,
         model,
         baseUrl,
         enabled,
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
       },
       create: {
         id: 1,
-        provider: provider as (typeof PROVIDERS)[number],
+        provider,
         model,
         baseUrl,
         enabled,
