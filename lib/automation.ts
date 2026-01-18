@@ -1,9 +1,7 @@
 import prisma from "./prisma";
 import { generateSplitSuggestions } from "./ai-suggestions";
 import { requestAiChat } from "./ai-provider";
-import { buildAiUsageMetadata } from "./ai-usage";
 import type { AiUsageContext } from "./ai-usage";
-import { logAudit } from "./audit";
 import { TASK_STATUS, TASK_TYPE } from "./types";
 import {
   DELEGATE_TAG,
@@ -17,6 +15,7 @@ import {
 
 const scoreFromPoints = (points: number) =>
   Math.min(100, Math.max(0, Math.round(points * 9)));
+const STAGE_STEP = 5;
 
 // 高スコアはデフォルトで承認必須にする。明示的に false を指定した場合のみ自動分解を許可。
 const requireApproval = process.env.AUTOMATION_REQUIRE_APPROVAL !== "false";
@@ -47,16 +46,12 @@ const llmDelegationDecision = async (
       maxTokens: 80,
       context,
     });
-    if (!result) return null;
-    const usageMeta = result
-      ? buildAiUsageMetadata(result.provider, result.model, result.usage)
-      : null;
-    if (!result.content) return { usageMeta };
+    if (!result?.content) return null;
     const parsed = JSON.parse(extractJson(result.content));
     if (typeof parsed?.delegatable === "boolean") {
-      return { delegatable: parsed.delegatable, reason: parsed.reason, usageMeta };
+      return { delegatable: parsed.delegatable, reason: parsed.reason };
     }
-    return { usageMeta };
+    return null;
   } catch {
     return null;
   }
@@ -79,22 +74,6 @@ const shouldDelegate = async (
     taskId: task.id,
     source: "automation",
   });
-  if (context && aiDecision?.usageMeta) {
-    await logAudit({
-      actorId: context.userId,
-      action: "AI_DELEGATE",
-      targetWorkspaceId: context.workspaceId,
-      metadata: {
-        ...aiDecision.usageMeta,
-        taskId: task.id,
-        decision:
-          typeof aiDecision.delegatable === "boolean"
-            ? aiDecision.delegatable
-            : null,
-        source: "automation",
-      },
-    });
-  }
   if (aiDecision && typeof aiDecision.delegatable === "boolean") {
     return aiDecision.delegatable;
   }
@@ -135,9 +114,12 @@ export async function applyAutomationForTask(params: {
     create: { low: 35, high: 70, userId, workspaceId },
   });
 
+  const stage = thresholds.stage ?? 0;
+  const low = thresholds.low + stage * STAGE_STEP;
+  const high = thresholds.high + stage * STAGE_STEP;
   const score = scoreFromPoints(current.points);
 
-  if (score < thresholds.low) {
+  if (score < low) {
     if (!(await shouldDelegate(current, { userId, workspaceId }))) {
       return;
     }
@@ -163,7 +145,7 @@ export async function applyAutomationForTask(params: {
     return;
   }
 
-  if (score > thresholds.high && current.tags?.includes(SPLIT_REJECTED_TAG)) {
+  if (score > high && current.tags?.includes(SPLIT_REJECTED_TAG)) {
     return;
   }
 
@@ -179,32 +161,12 @@ export async function applyAutomationForTask(params: {
       source: "automation",
     },
   });
-  if (splitResult.source === "provider") {
-    const usageMeta = buildAiUsageMetadata(
-      splitResult.provider,
-      splitResult.model,
-      splitResult.usage,
-    );
-    if (usageMeta) {
-      await logAudit({
-        actorId: userId,
-        action: "AI_SPLIT",
-        targetWorkspaceId: workspaceId,
-        metadata: {
-          ...usageMeta,
-          taskId: current.id,
-          source: "automation",
-        },
-      });
-    }
-  }
   const suggestions = splitResult.suggestions;
 
-  const prefix =
-    score > thresholds.high ? "高スコア: 分割必須" : "中スコア: 分解提案";
+  const prefix = score > high ? "高スコア: 分割必須" : "中スコア: 分解提案";
 
   // 中スコア帯は従来通りログのみ
-  if (score <= thresholds.high) {
+  if (score <= high) {
     await prisma.aiSuggestion.create({
       data: {
         type: "SPLIT",

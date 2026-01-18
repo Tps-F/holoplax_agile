@@ -6,10 +6,8 @@ import {
   serverError,
 } from "../../../../lib/api-response";
 import { generateSplitSuggestions } from "../../../../lib/ai-suggestions";
-import { buildAiUsageMetadata } from "../../../../lib/ai-usage";
 import prisma from "../../../../lib/prisma";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
-import { logAudit } from "../../../../lib/audit";
 
 export async function POST(request: Request) {
   try {
@@ -48,22 +46,6 @@ export async function POST(request: Request) {
         source: "ai-split",
       },
     });
-    if (result.source === "provider") {
-      const usageMeta = buildAiUsageMetadata(result.provider, result.model, result.usage);
-      if (usageMeta) {
-        await logAudit({
-          actorId: userId,
-          action: "AI_SPLIT",
-          targetWorkspaceId: workspaceId,
-          metadata: {
-            ...usageMeta,
-            taskId,
-            source: "ai-split",
-          },
-        });
-      }
-    }
-
     const saved = await prisma.aiSuggestion.create({
       data: {
         type: "SPLIT",

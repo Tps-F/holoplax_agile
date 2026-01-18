@@ -16,12 +16,38 @@ export type AiChatResult = {
 
 const DEFAULT_MODEL = "gpt-4o-mini";
 
+const MODEL_PROVIDER_MAP: Record<string, string> = {
+  "gpt-4o-mini": "OPENAI",
+  "gpt-4o": "OPENAI",
+  "openai/gpt-4o-mini": "OPENAI",
+  "openai/gpt-4o": "OPENAI",
+  "claude-3-5-sonnet-20240620": "ANTHROPIC",
+  "claude-3-5-haiku-20241022": "ANTHROPIC",
+  "anthropic/claude-3-5-sonnet-20240620": "ANTHROPIC",
+  "anthropic/claude-3-5-haiku-20241022": "ANTHROPIC",
+  "gemini-1.5-flash": "GEMINI",
+  "gemini-1.5-pro": "GEMINI",
+  "gemini/gemini-1.5-flash": "GEMINI",
+  "gemini/gemini-1.5-pro": "GEMINI",
+};
+
+const MODEL_PREFIX_PROVIDER_MAP: Array<{ prefix: string; provider: string }> = [
+  { prefix: "openai/", provider: "OPENAI" },
+  { prefix: "anthropic/", provider: "ANTHROPIC" },
+  { prefix: "gemini/", provider: "GEMINI" },
+  { prefix: "google/", provider: "GEMINI" },
+];
+
 const resolveProviderKey = (model: string): string => {
   const normalized = model.trim().toLowerCase();
-  const prefix = normalized.split("/")[0];
-  if (prefix === "anthropic" || normalized.startsWith("claude")) return "ANTHROPIC";
-  if (prefix === "gemini" || prefix === "google" || normalized.startsWith("gemini")) return "GEMINI";
-  if (prefix === "openai" || normalized.startsWith("gpt-")) return "OPENAI";
+  const mapped = MODEL_PROVIDER_MAP[normalized];
+  if (mapped) return mapped;
+  for (const entry of MODEL_PREFIX_PROVIDER_MAP) {
+    if (normalized.startsWith(entry.prefix)) return entry.provider;
+  }
+  if (normalized.startsWith("claude")) return "ANTHROPIC";
+  if (normalized.startsWith("gemini")) return "GEMINI";
+  if (normalized.startsWith("gpt-")) return "OPENAI";
   return "UNKNOWN";
 };
 

@@ -5,8 +5,6 @@ import {
   ok,
   serverError,
 } from "../../../../lib/api-response";
-import { buildAiUsageMetadata } from "../../../../lib/ai-usage";
-import { logAudit } from "../../../../lib/audit";
 import { requestAiChat } from "../../../../lib/ai-provider";
 import prisma from "../../../../lib/prisma";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
@@ -117,26 +115,6 @@ export async function POST(request: Request) {
           source: `ai-prep:${type}`,
         },
       });
-      if (result) {
-        const usageMeta = buildAiUsageMetadata(
-          result.provider,
-          result.model,
-          result.usage,
-        );
-        if (usageMeta) {
-          await logAudit({
-            actorId: userId,
-            action: "AI_PREP",
-            targetWorkspaceId: workspaceId,
-            metadata: {
-              ...usageMeta,
-              taskId,
-              type,
-              source: "ai-prep",
-            },
-          });
-        }
-      }
       if (result?.content) {
         output = result.content.trim();
       }

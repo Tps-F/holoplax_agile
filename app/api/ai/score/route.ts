@@ -5,8 +5,6 @@ import {
   ok,
   serverError,
 } from "../../../../lib/api-response";
-import { buildAiUsageMetadata } from "../../../../lib/ai-usage";
-import { logAudit } from "../../../../lib/audit";
 import { requestAiChat } from "../../../../lib/ai-provider";
 import prisma from "../../../../lib/prisma";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
@@ -69,25 +67,6 @@ export async function POST(request: Request) {
           source: "ai-score",
         },
       });
-      if (result) {
-        const usageMeta = buildAiUsageMetadata(
-          result.provider,
-          result.model,
-          result.usage,
-        );
-        if (usageMeta) {
-          await logAudit({
-            actorId: userId,
-            action: "AI_SCORE",
-            targetWorkspaceId: workspaceId,
-            metadata: {
-              ...usageMeta,
-              taskId,
-              source: "ai-score",
-            },
-          });
-        }
-      }
       if (result?.content) {
         const parsed = JSON.parse(extractJson(result.content));
         if (parsed?.points) payload = parsed;

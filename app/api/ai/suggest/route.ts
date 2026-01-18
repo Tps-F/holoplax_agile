@@ -7,8 +7,6 @@ import {
 } from "../../../../lib/api-response";
 import prisma from "../../../../lib/prisma";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
-import { buildAiUsageMetadata } from "../../../../lib/ai-usage";
-import { logAudit } from "../../../../lib/audit";
 import { requestAiChat } from "../../../../lib/ai-provider";
 
 const canned = [
@@ -78,25 +76,6 @@ export async function POST(request: Request) {
           source: "ai-suggest",
         },
       });
-      if (result) {
-        const usageMeta = buildAiUsageMetadata(
-          result.provider,
-          result.model,
-          result.usage,
-        );
-        if (usageMeta) {
-          await logAudit({
-            actorId: userId,
-            action: "AI_SUGGEST",
-            targetWorkspaceId: workspaceId,
-            metadata: {
-              ...usageMeta,
-              taskId,
-              source: "ai-suggest",
-            },
-          });
-        }
-      }
       if (result?.content) {
         const saved = await prisma.aiSuggestion.create({
           data: {

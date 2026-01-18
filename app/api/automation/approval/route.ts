@@ -7,7 +7,6 @@ import {
   serverError,
 } from "../../../../lib/api-response";
 import { generateSplitSuggestions } from "../../../../lib/ai-suggestions";
-import { buildAiUsageMetadata } from "../../../../lib/ai-usage";
 import {
   PENDING_APPROVAL_TAG,
   SPLIT_REJECTED_TAG,
@@ -20,6 +19,9 @@ import prisma from "../../../../lib/prisma";
 import { TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 import { logAudit } from "../../../../lib/audit";
+
+const STAGE_COOLDOWN_DAYS = 7;
+const MAX_STAGE = 3;
 
 type SplitSuggestion = {
   title: string;
@@ -39,6 +41,43 @@ const parseSuggestions = (output: string | null, fallback: SplitSuggestion[]) =>
     // ignore
   }
   return fallback;
+};
+
+const maybeRaiseStage = async (userId: string, workspaceId: string) => {
+  const setting = await prisma.userAutomationSetting.findFirst({
+    where: { userId, workspaceId },
+  });
+  if (!setting) return null;
+  const currentStage = setting.stage ?? 0;
+  if (currentStage >= MAX_STAGE) return null;
+  if (setting.lastStageAt) {
+    const diff = Date.now() - new Date(setting.lastStageAt).getTime();
+    if (diff < STAGE_COOLDOWN_DAYS * 24 * 60 * 60 * 1000) {
+      return null;
+    }
+  }
+  const nextStage = currentStage + 1;
+  await prisma.$transaction(async (tx) => {
+    await tx.userAutomationSetting.update({
+      where: { id: setting.id },
+      data: { stage: nextStage, lastStageAt: new Date() },
+    });
+    await tx.automationStageHistory.create({
+      data: {
+        userId,
+        workspaceId,
+        stage: nextStage,
+        reason: "split_approval",
+      },
+    });
+  });
+  await logAudit({
+    actorId: userId,
+    action: "AUTOMATION_STAGE_RAISE",
+    targetWorkspaceId: workspaceId,
+    metadata: { stage: nextStage, reason: "split_approval" },
+  });
+  return nextStage;
 };
 
 export async function POST(request: Request) {
@@ -108,26 +147,6 @@ export async function POST(request: Request) {
       latest?.output ?? null,
       fallbackResult.suggestions,
     );
-    if (fallbackResult.source === "provider") {
-      const usageMeta = buildAiUsageMetadata(
-        fallbackResult.provider,
-        fallbackResult.model,
-        fallbackResult.usage,
-      );
-      if (usageMeta) {
-        await logAudit({
-          actorId: userId,
-          action: "AI_SPLIT",
-          targetWorkspaceId: workspaceId,
-          metadata: {
-            ...usageMeta,
-            taskId: task.id,
-            source: "approval",
-          },
-        });
-      }
-    }
-
     await prisma.$transaction(async (tx) => {
       const nextTags = withTag(
         withoutTags(task.tags ?? [], [PENDING_APPROVAL_TAG, SPLIT_REJECTED_TAG]),
@@ -159,6 +178,7 @@ export async function POST(request: Request) {
       );
     });
 
+    await maybeRaiseStage(userId, workspaceId);
     return ok({ status: "approved", created: suggestions.length });
   } catch (error) {
     const authError = handleAuthError(error);
