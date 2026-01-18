@@ -97,6 +97,13 @@ enum MemoryStatus {
   STALE
 }
 
+enum MemoryQuestionStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  HOLD
+}
+
 model User {
   id                     String                   @id @default(cuid())
   name                   String?
@@ -125,6 +132,7 @@ model User {
   taskStatusEvents       TaskStatusEvent[]        @relation("StatusEventActor")
   memoryClaims           MemoryClaim[]
   memoryMetrics          MemoryMetric[]
+  memoryQuestions        MemoryQuestion[]
   createdAt              DateTime                 @default(now())
   updatedAt              DateTime                 @updatedAt
 }
@@ -212,6 +220,7 @@ model Workspace {
   statusEvents           TaskStatusEvent[]
   memoryClaims           MemoryClaim[]
   memoryMetrics          MemoryMetric[]
+  memoryQuestions        MemoryQuestion[]
   focusQueues            FocusQueue[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
@@ -377,6 +386,29 @@ model AiPrepOutput {
   @@index([taskId, createdAt])
 }
 
+model AiUsage {
+  id               String   @id @default(cuid())
+  action           String
+  provider         String
+  model            String
+  promptTokens     Int?
+  completionTokens Int?
+  totalTokens      Int?
+  costUsd          Float?
+  usageSource      String
+  source           String?
+  taskId           String?
+  userId           String?
+  user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workspaceId      String?
+  workspace        Workspace? @relation(fields: [workspaceId], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
 model Sprint {
   id             String       @id @default(cuid())
   name           String
@@ -434,6 +466,7 @@ model MemoryType {
   updatedAt    DateTime        @updatedAt
   claims       MemoryClaim[]
   metrics      MemoryMetric[]
+  questions    MemoryQuestion[]
 
   @@unique([key, scope])
   @@index([scope])
@@ -462,6 +495,28 @@ model MemoryClaim {
 
   @@index([typeId, userId])
   @@index([typeId, workspaceId])
+}
+
+model MemoryQuestion {
+  id          String               @id @default(cuid())
+  typeId      String
+  type        MemoryType           @relation(fields: [typeId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId String?
+  workspace   Workspace?           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  valueStr    String?
+  valueNum    Float?
+  valueBool   Boolean?
+  valueJson   Json?
+  confidence  Float                @default(0.7)
+  status      MemoryQuestionStatus @default(PENDING)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([typeId, status])
+  @@index([userId, status])
+  @@index([workspaceId, status])
 }
 
 model MemoryMetric {
