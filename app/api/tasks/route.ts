@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { requireAuth } from "../../../lib/api-auth";
 import {
   badRequest,
@@ -13,6 +14,27 @@ import { TASK_STATUS, TASK_TYPE } from "../../../lib/types";
 import { mapTaskWithDependencies } from "../../../lib/mappers/task";
 import { resolveWorkspaceId } from "../../../lib/workspace-context";
 
+const toChecklist = (value: unknown) => {
+  if (!Array.isArray(value)) return null;
+  return value
+    .map((item) => ({
+      id: typeof item?.id === "string" ? item.id : randomUUID(),
+      text: String(item?.text ?? "").trim(),
+      done: Boolean(item?.done),
+    }))
+    .filter((item) => item.text.length > 0);
+};
+
+const nextRoutineAt = (cadence: "DAILY" | "WEEKLY", base: Date) => {
+  const next = new Date(base);
+  if (cadence === "DAILY") {
+    next.setDate(next.getDate() + 1);
+  } else {
+    next.setDate(next.getDate() + 7);
+  }
+  return next;
+};
+
 export async function GET() {
   try {
     const { userId } = await requireAuth();
@@ -24,6 +46,9 @@ export async function GET() {
       where: { workspaceId },
       orderBy: { createdAt: "desc" },
       include: {
+        routineRule: {
+          select: { cadence: true, nextAt: true },
+        },
         dependencies: {
           select: {
             dependsOnId: true,
@@ -50,6 +75,8 @@ export async function POST(request: Request) {
     const {
       title,
       description,
+      definitionOfDone,
+      checklist,
       points,
       urgency,
       risk,
@@ -60,6 +87,8 @@ export async function POST(request: Request) {
       assigneeId,
       tags,
       dependencyIds,
+      routineCadence,
+      routineNextAt,
     } = body;
     if (!title || points === undefined || points === null) {
       return badRequest("title and points are required");
@@ -129,6 +158,8 @@ export async function POST(request: Request) {
       data: {
         title,
         description: description ?? "",
+        definitionOfDone: typeof definitionOfDone === "string" ? definitionOfDone : "",
+        checklist: toChecklist(checklist),
         points: Number(points),
         urgency: urgency ?? "中",
         risk: risk ?? "中",
@@ -143,6 +174,19 @@ export async function POST(request: Request) {
         workspace: { connect: { id: workspaceId } },
       },
     });
+    const cadenceValue =
+      routineCadence === "DAILY" || routineCadence === "WEEKLY" ? routineCadence : null;
+    if (typeValue === TASK_TYPE.ROUTINE && cadenceValue) {
+      const baseDate = dueDate ? new Date(dueDate) : new Date();
+      const nextAt = routineNextAt ? new Date(routineNextAt) : nextRoutineAt(cadenceValue, baseDate);
+      await prisma.routineRule.create({
+        data: {
+          taskId: task.id,
+          cadence: cadenceValue,
+          nextAt,
+        },
+      });
+    }
     if (allowedDependencies.length > 0) {
       await prisma.taskDependency.createMany({
         data: dependencyList

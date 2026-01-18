@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { requireAuth } from "../../../../lib/api-auth";
 import {
   badRequest,
@@ -12,6 +13,28 @@ import prisma from "../../../../lib/prisma";
 import { TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
+const toChecklist = (value: unknown) => {
+  if (value === null) return null;
+  if (!Array.isArray(value)) return undefined;
+  return value
+    .map((item) => ({
+      id: typeof item?.id === "string" ? item.id : randomUUID(),
+      text: String(item?.text ?? "").trim(),
+      done: Boolean(item?.done),
+    }))
+    .filter((item) => item.text.length > 0);
+};
+
+const nextRoutineAt = (cadence: "DAILY" | "WEEKLY", base: Date) => {
+  const next = new Date(base);
+  if (cadence === "DAILY") {
+    next.setDate(next.getDate() + 1);
+  } else {
+    next.setDate(next.getDate() + 7);
+  }
+  return next;
+};
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -22,6 +45,13 @@ export async function PATCH(
 
   if (body.title) data.title = body.title;
   if (typeof body.description === "string") data.description = body.description;
+  if (typeof body.definitionOfDone === "string") {
+    data.definitionOfDone = body.definitionOfDone;
+  }
+  const checklistValue = toChecklist(body.checklist);
+  if (checklistValue !== undefined) {
+    data.checklist = checklistValue;
+  }
   if (body.points !== undefined && body.points !== null) {
     if (badPoints(body.points)) {
       return badRequest("points must be one of 1,2,3,5,8,13,21,34");
@@ -46,6 +76,18 @@ export async function PATCH(
   if (statusValue) {
     data.status = statusValue;
   }
+  const cadenceValue =
+    body.routineCadence === "DAILY" || body.routineCadence === "WEEKLY"
+      ? body.routineCadence
+      : null;
+  const shouldClearRoutine =
+    body.routineCadence === null ||
+    body.routineCadence === "" ||
+    body.routineCadence === "NONE";
+  const routineNextAt =
+    body.routineNextAt !== undefined && body.routineNextAt !== null
+      ? new Date(body.routineNextAt)
+      : null;
 
   try {
     const { userId } = await requireAuth();
@@ -53,12 +95,13 @@ export async function PATCH(
     if (!workspaceId) {
       return notFound("workspace not selected");
     }
-    const currentTask = statusValue
-      ? await prisma.task.findFirst({
-          where: { id, workspaceId },
-          select: { status: true, points: true },
-        })
-      : null;
+    const currentTask = await prisma.task.findFirst({
+      where: { id, workspaceId },
+      include: { routineRule: true },
+    });
+    if (!currentTask) {
+      return notFound();
+    }
     if (statusValue === TASK_STATUS.SPRINT || statusValue === TASK_STATUS.DONE) {
       const blocking = await prisma.taskDependency.findMany({
         where: {
@@ -108,7 +151,7 @@ export async function PATCH(
         where: { workspaceId, status: TASK_STATUS.SPRINT, id: { not: id } },
         _sum: { points: true },
       });
-      const currentPoints = currentTask?.points ?? 0;
+      const currentPoints = currentTask.points ?? 0;
       const nextPoints =
         (current._sum.points ?? 0) + (typeof data.points === "number" ? data.points : currentPoints);
       if (nextPoints > activeSprint.capacityPoints) {
@@ -128,6 +171,7 @@ export async function PATCH(
     }
     const task = await prisma.task.findFirst({
       where: { id, workspaceId },
+      include: { routineRule: true },
     });
     if (Array.isArray(body.dependencyIds)) {
       const dependencyIds = body.dependencyIds.map((depId: string) => String(depId));
@@ -148,23 +192,112 @@ export async function PATCH(
         });
       }
     }
+    if (task) {
+      const finalType = (task.type ?? TASK_TYPE.PBI) as string;
+      if (finalType !== TASK_TYPE.ROUTINE && task.routineRule) {
+        await prisma.routineRule.delete({ where: { taskId: task.id } });
+      } else if (finalType === TASK_TYPE.ROUTINE) {
+        if (cadenceValue) {
+          const baseDate = task.dueDate ? new Date(task.dueDate) : new Date();
+          const nextAt = routineNextAt ?? task.routineRule?.nextAt ?? nextRoutineAt(cadenceValue, baseDate);
+          await prisma.routineRule.upsert({
+            where: { taskId: task.id },
+            update: { cadence: cadenceValue, nextAt },
+            create: { taskId: task.id, cadence: cadenceValue, nextAt },
+          });
+        } else if (routineNextAt && task.routineRule) {
+          await prisma.routineRule.update({
+            where: { taskId: task.id },
+            data: { nextAt: routineNextAt },
+          });
+        } else if (shouldClearRoutine && task.routineRule) {
+          await prisma.routineRule.delete({ where: { taskId: task.id } });
+        }
+      }
+    }
+
     await logAudit({
       actorId: userId,
       action: "TASK_UPDATE",
       targetWorkspaceId: workspaceId,
       metadata: { taskId: id },
     });
-    if (task && statusValue && currentTask?.status !== statusValue) {
+    if (task && statusValue && currentTask.status !== statusValue) {
       await prisma.taskStatusEvent.create({
         data: {
           taskId: task.id,
-          fromStatus: currentTask?.status ?? null,
+          fromStatus: currentTask.status ?? null,
           toStatus: statusValue,
           actorId: userId,
           source: "api",
           workspaceId,
         },
       });
+    }
+    if (
+      task &&
+      statusValue === TASK_STATUS.DONE &&
+      currentTask.status !== TASK_STATUS.DONE &&
+      task.type === TASK_TYPE.ROUTINE
+    ) {
+      const rule = task.routineRule
+        ? task.routineRule
+        : await prisma.routineRule.findUnique({ where: { taskId: task.id } });
+      if (rule) {
+        const now = new Date();
+        const dueAt = rule.nextAt && rule.nextAt > now ? rule.nextAt : now;
+        const nextAt = nextRoutineAt(rule.cadence as "DAILY" | "WEEKLY", dueAt);
+        const resetChecklist = Array.isArray(task.checklist)
+          ? task.checklist.map((item) => ({
+              id: typeof item?.id === "string" ? item.id : randomUUID(),
+              text: String(item?.text ?? "").trim(),
+              done: false,
+            }))
+          : null;
+        const created = await prisma.task.create({
+          data: {
+            title: task.title,
+            description: task.description ?? "",
+            definitionOfDone: task.definitionOfDone ?? "",
+            checklist: resetChecklist,
+            points: task.points,
+            urgency: task.urgency,
+            risk: task.risk,
+            status: TASK_STATUS.BACKLOG,
+            type: TASK_TYPE.ROUTINE,
+            dueDate: dueAt,
+            tags: task.tags ?? [],
+            assigneeId: task.assigneeId ?? null,
+            userId: task.userId ?? userId,
+            workspaceId,
+          },
+        });
+        await prisma.routineRule.update({
+          where: { taskId: task.id },
+          data: { taskId: created.id, nextAt },
+        });
+        await prisma.taskStatusEvent.create({
+          data: {
+            taskId: created.id,
+            fromStatus: null,
+            toStatus: TASK_STATUS.BACKLOG,
+            actorId: userId,
+            source: "routine",
+            workspaceId,
+          },
+        });
+        await applyAutomationForTask({
+          userId,
+          workspaceId,
+          task: {
+            id: created.id,
+            title: created.title,
+            description: created.description ?? "",
+            points: created.points,
+            status: created.status,
+          },
+        });
+      }
     }
     if (task) {
       await applyAutomationForTask({

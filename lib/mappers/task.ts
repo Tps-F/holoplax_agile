@@ -9,11 +9,14 @@ type TaskWithDeps<T extends DepNode = DepNode> = {
   id: string;
   title: string;
   description: string;
+  definitionOfDone?: string | null;
+  checklist?: unknown | null;
   points: number;
   urgency: string;
   risk: string;
   status: TaskStatus;
   type?: string | null;
+  routineRule?: { cadence: string; nextAt: Date } | null;
   parentId?: string | null;
   dueDate: Date | null;
   assigneeId: string | null;
@@ -29,7 +32,13 @@ export const mapTaskWithDependencies = (task: TaskWithDeps) => {
   const dependencies = task.dependencies
     .map((dep) => dep.dependsOn)
     .filter((dep): dep is { id: string; title: string; status: TaskStatus } => Boolean(dep));
-  return { ...task, dependencyIds, dependencies };
+  return {
+    ...task,
+    dependencyIds,
+    dependencies,
+    routineCadence: task.routineRule?.cadence ?? null,
+    routineNextAt: task.routineRule?.nextAt ?? null,
+  };
 };
 
 export const hasOpenDependencies = (task: TaskWithDeps) =>

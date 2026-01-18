@@ -19,11 +19,15 @@ export type TaskDTO = {
   id: string;
   title: string;
   description?: string;
+  definitionOfDone?: string;
+  checklist?: { id: string; text: string; done: boolean }[] | null;
   points: 1 | 2 | 3 | 5 | 8 | 13 | 21 | 34;
   urgency: string;
   risk: string;
   status: TaskStatus;
   type?: TaskType;
+  routineCadence?: "DAILY" | "WEEKLY" | null;
+  routineNextAt?: string | Date | null;
   parentId?: string | null;
   dueDate?: string | Date | null;
   assigneeId?: string | null;
@@ -45,6 +49,9 @@ export type VelocityEntryDTO = {
 export type AutomationSettingDTO = {
   low: number;
   high: number;
+  stage?: number;
+  effectiveLow?: number;
+  effectiveHigh?: number;
 };
 
 export type AiSuggestionDTO = {
