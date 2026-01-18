@@ -1,12 +1,11 @@
-import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import { logAudit } from "../../../../lib/audit";
 import { SprintStartSchema } from "../../../../lib/contracts/sprint";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 const defaultSprintName = () => {
   const today = new Date().toISOString().slice(0, 10);
@@ -25,8 +24,7 @@ export async function GET() {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
       if (!workspaceId) {
         return ok({ sprint: null });
       }
@@ -59,11 +57,10 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
-      if (!workspaceId) {
-        return errors.badRequest("workspace is required");
-      }
+      const { userId, workspaceId } = await requireWorkspaceAuth({
+        domain: "SPRINT",
+        requireWorkspace: true,
+      });
       const body = await parseBody(request, SprintStartSchema, {
         code: "SPRINT_VALIDATION",
         allowEmpty: true,
@@ -127,11 +124,10 @@ export async function PATCH() {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
-      if (!workspaceId) {
-        return errors.badRequest("workspace is required");
-      }
+      const { userId, workspaceId } = await requireWorkspaceAuth({
+        domain: "SPRINT",
+        requireWorkspace: true,
+      });
       const sprint = await prisma.sprint.findFirst({
         where: { workspaceId, status: "ACTIVE" },
         orderBy: { startedAt: "desc" },

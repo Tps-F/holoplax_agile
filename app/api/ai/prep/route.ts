@@ -1,13 +1,12 @@
 import { AiPrepType } from "@prisma/client";
-import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import { AiPrepSchema } from "../../../../lib/contracts/ai";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import { requestAiChat } from "../../../../lib/ai-provider";
 import prisma from "../../../../lib/prisma";
-import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 const prepPrompts: Record<
   string,
@@ -55,8 +54,7 @@ export async function GET(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
       if (!workspaceId) {
         return ok({ outputs: [] });
       }
@@ -92,11 +90,10 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
-      if (!workspaceId) {
-        return errors.badRequest("workspace is required");
-      }
+      const { userId, workspaceId } = await requireWorkspaceAuth({
+        domain: "AI",
+        requireWorkspace: true,
+      });
       const body = await parseBody(request, AiPrepSchema, { code: "AI_VALIDATION" });
       const taskId = body.taskId;
       const type = body.type;

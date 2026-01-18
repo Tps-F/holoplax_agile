@@ -1,8 +1,7 @@
-import { requireAuth } from "../../../lib/api-auth";
 import { withApiHandler } from "../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../lib/api-guards";
 import { ok } from "../../../lib/api-response";
 import prisma from "../../../lib/prisma";
-import { resolveWorkspaceId } from "../../../lib/workspace-context";
 
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
@@ -17,8 +16,7 @@ export async function GET() {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { workspaceId } = await requireWorkspaceAuth();
       if (!workspaceId) {
         return ok({ items: [], computedAt: null });
       }

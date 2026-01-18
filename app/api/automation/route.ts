@@ -1,11 +1,10 @@
-import { requireAuth } from "../../../lib/api-auth";
 import { withApiHandler } from "../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../lib/api-guards";
 import { ok } from "../../../lib/api-response";
 import { AutomationUpdateSchema } from "../../../lib/contracts/automation";
 import { createDomainErrors } from "../../../lib/http/errors";
 import { parseBody } from "../../../lib/http/validation";
 import prisma from "../../../lib/prisma";
-import { resolveWorkspaceId } from "../../../lib/workspace-context";
 
 const STAGE_STEP = 5;
 const errors = createDomainErrors("AUTOMATION");
@@ -21,8 +20,7 @@ export async function GET() {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
       if (!workspaceId) {
         return ok({ low: 35, high: 70, workspaceId: null });
       }
@@ -55,11 +53,10 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
-      if (!workspaceId) {
-        return errors.badRequest("workspace is required");
-      }
+      const { userId, workspaceId } = await requireWorkspaceAuth({
+        domain: "AUTOMATION",
+        requireWorkspace: true,
+      });
       const body = await parseBody(request, AutomationUpdateSchema, {
         code: "AUTOMATION_VALIDATION",
       });

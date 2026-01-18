@@ -1,5 +1,5 @@
-import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
+import { requireAdmin } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import { logAudit } from "../../../../lib/audit";
 import { AdminAiUpdateSchema } from "../../../../lib/contracts/admin";
@@ -39,10 +39,7 @@ export async function GET() {
       },
     },
     async () => {
-      const { role } = await requireAuth();
-      if (role !== "ADMIN") {
-        return errors.forbidden();
-      }
+      await requireAdmin("ADMIN");
       const setting = await prisma.aiProviderSetting.findUnique({
         where: { id: 1 },
         select: { model: true, baseUrl: true, enabled: true, apiKey: true },
@@ -74,10 +71,7 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { userId, role } = await requireAuth();
-      if (role !== "ADMIN") {
-        return errors.forbidden();
-      }
+      const { userId } = await requireAdmin("ADMIN");
       const body = await parseBody(request, AdminAiUpdateSchema, {
         code: "ADMIN_VALIDATION",
         allowEmpty: true,

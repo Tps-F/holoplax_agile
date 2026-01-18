@@ -1,14 +1,11 @@
-import { requireAuth } from "../../../lib/api-auth";
 import { withApiHandler } from "../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../lib/api-guards";
 import { ok } from "../../../lib/api-response";
 import { logAudit } from "../../../lib/audit";
 import { VelocityCreateSchema } from "../../../lib/contracts/velocity";
-import { createDomainErrors } from "../../../lib/http/errors";
 import { parseBody } from "../../../lib/http/validation";
 import prisma from "../../../lib/prisma";
-import { resolveWorkspaceId } from "../../../lib/workspace-context";
 
-const errors = createDomainErrors("VELOCITY");
 
 export async function GET() {
   return withApiHandler(
@@ -21,8 +18,7 @@ export async function GET() {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { workspaceId } = await requireWorkspaceAuth();
       if (!workspaceId) {
         return ok({ velocity: [] });
       }
@@ -93,11 +89,10 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
-      if (!workspaceId) {
-        return errors.badRequest("workspace is required");
-      }
+      const { userId, workspaceId } = await requireWorkspaceAuth({
+        domain: "VELOCITY",
+        requireWorkspace: true,
+      });
       const body = await parseBody(request, VelocityCreateSchema, {
         code: "VELOCITY_VALIDATION",
       });

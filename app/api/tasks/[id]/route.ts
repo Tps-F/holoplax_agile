@@ -1,7 +1,7 @@
 import { Prisma, TaskStatus, TaskType } from "@prisma/client";
 import { randomUUID } from "crypto";
-import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import { applyAutomationForTask } from "../../../../lib/automation";
 import { badPoints } from "../../../../lib/points";
@@ -11,7 +11,6 @@ import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
 import { TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
-import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>
   Object.values(TASK_STATUS).includes(value as TaskStatus);
@@ -147,11 +146,10 @@ export async function PATCH(
           ? new Date(body.routineNextAt)
           : null;
 
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
       if (!workspaceId) {
-      return errors.notFound("workspace not selected");
-    }
+        return errors.notFound("workspace not selected");
+      }
     const currentTask = await prisma.task.findFirst({
       where: { id, workspaceId },
       include: { routineRule: true },
@@ -363,7 +361,7 @@ export async function PATCH(
         },
       });
     }
-      return ok({ task });
+    return ok({ task });
     },
   );
 }
@@ -383,8 +381,7 @@ export async function DELETE(
     },
     async () => {
       const { id } = await params;
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
       if (!workspaceId) {
         return errors.notFound("workspace not selected");
       }

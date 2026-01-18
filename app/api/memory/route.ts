@@ -1,12 +1,11 @@
 import { Prisma, MemoryScope, MemorySource, MemoryStatus, MemoryValueType } from "@prisma/client";
-import { requireAuth } from "../../../lib/api-auth";
 import { withApiHandler } from "../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../lib/api-guards";
 import { ok } from "../../../lib/api-response";
 import { MemoryClaimCreateSchema, MemoryClaimDeleteSchema } from "../../../lib/contracts/memory";
 import { createDomainErrors } from "../../../lib/http/errors";
 import { parseBody } from "../../../lib/http/validation";
 import prisma from "../../../lib/prisma";
-import { resolveWorkspaceId } from "../../../lib/workspace-context";
 
 const errors = createDomainErrors("MEMORY");
 
@@ -176,8 +175,7 @@ export async function GET() {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
       const scopes: MemoryScope[] = workspaceId ? ["USER", "WORKSPACE"] : ["USER"];
 
       await ensureMemoryTypes(scopes);
@@ -217,8 +215,7 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
       const body = await parseBody(request, MemoryClaimCreateSchema, {
         code: "MEMORY_VALIDATION",
       });
@@ -299,8 +296,7 @@ export async function DELETE(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
       const body = await parseBody(request, MemoryClaimDeleteSchema, {
         code: "MEMORY_VALIDATION",
       });

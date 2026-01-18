@@ -1,12 +1,11 @@
 import { Prisma } from "@prisma/client";
-import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import { MemoryQuestionCreateSchema } from "../../../../lib/contracts/memory";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 const CONFIDENCE_THRESHOLD = 0.7;
 const errors = createDomainErrors("MEMORY");
@@ -30,8 +29,7 @@ export async function GET() {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
       const questions = await prisma.memoryQuestion.findMany({
         where: {
           status: "PENDING",
@@ -78,8 +76,7 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
       const body = await parseBody(request, MemoryQuestionCreateSchema, {
         code: "MEMORY_VALIDATION",
       });

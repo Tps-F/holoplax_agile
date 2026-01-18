@@ -1,8 +1,7 @@
-import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import prisma from "../../../../lib/prisma";
-import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 export async function GET() {
   return withApiHandler(
@@ -15,8 +14,7 @@ export async function GET() {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { workspaceId } = await requireWorkspaceAuth();
       if (!workspaceId) {
         return ok({ logs: [] });
       }

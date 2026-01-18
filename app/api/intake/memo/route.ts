@@ -2,7 +2,6 @@ import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import prisma from "../../../../lib/prisma";
-import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 import { deriveIntakeTitle, findDuplicateTasks } from "../../../../lib/intake-helpers";
 import { IntakeMemoSchema } from "../../../../lib/contracts/intake";
 import { createDomainErrors } from "../../../../lib/http/errors";
@@ -63,3 +62,4 @@ export async function POST(request: Request) {
     },
   );
 }
+import { resolveWorkspaceId } from "../../../../lib/workspace-context";

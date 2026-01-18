@@ -1,11 +1,10 @@
-import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import { AiSuggestSchema } from "../../../../lib/contracts/ai";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 import { requestAiChat } from "../../../../lib/ai-provider";
 
 const canned = [
@@ -26,8 +25,7 @@ export async function GET(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
       if (!workspaceId) {
         return ok({ suggestion: null });
       }
@@ -57,11 +55,10 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
-      if (!workspaceId) {
-        return errors.badRequest("workspace is required");
-      }
+      const { userId, workspaceId } = await requireWorkspaceAuth({
+        domain: "AI",
+        requireWorkspace: true,
+      });
       const body = await parseBody(request, AiSuggestSchema, { code: "AI_VALIDATION" });
       const title = body.title ?? "タスク";
       const description = body.description ?? "";

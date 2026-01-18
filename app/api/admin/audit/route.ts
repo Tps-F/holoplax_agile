@@ -1,5 +1,5 @@
-import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
+import { requireAdmin } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import { calculateAiUsageCost, loadAiPricingTable } from "../../../../lib/ai-pricing";
 import { createDomainErrors } from "../../../../lib/http/errors";
@@ -255,10 +255,7 @@ export async function GET(request: Request) {
       },
     },
     async () => {
-      const { role } = await requireAuth();
-      if (role !== "ADMIN") {
-        return errors.forbidden();
-      }
+      await requireAdmin("ADMIN");
       const { searchParams } = new URL(request.url);
       const filter = searchParams.get("filter");
       const format = searchParams.get("format");

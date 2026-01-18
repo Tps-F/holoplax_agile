@@ -1,6 +1,6 @@
 import { hash } from "bcryptjs";
-import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
+import { requireAdmin } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import { logAudit } from "../../../../lib/audit";
 import { AdminUserCreateSchema } from "../../../../lib/contracts/admin";
@@ -22,10 +22,7 @@ export async function GET() {
       },
     },
     async () => {
-      const { role } = await requireAuth();
-      if (role !== "ADMIN") {
-        return errors.forbidden();
-      }
+      await requireAdmin("ADMIN");
       const users = await prisma.user.findMany({
         orderBy: { createdAt: "desc" },
         select: {
@@ -61,10 +58,7 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { role, userId } = await requireAuth();
-      if (role !== "ADMIN") {
-        return errors.forbidden();
-      }
+      const { userId } = await requireAdmin("ADMIN");
 
       const body = await parseBody(request, AdminUserCreateSchema, {
         code: "ADMIN_VALIDATION",

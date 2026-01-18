@@ -1,10 +1,7 @@
-import { requireAuth } from "../../../../../../lib/api-auth";
 import { withApiHandler } from "../../../../../../lib/api-handler";
+import { requireAdmin } from "../../../../../../lib/api-guards";
 import { ok } from "../../../../../../lib/api-response";
-import { createDomainErrors } from "../../../../../../lib/http/errors";
 import prisma from "../../../../../../lib/prisma";
-
-const errors = createDomainErrors("ADMIN");
 
 export async function GET(
   _request: Request,
@@ -20,10 +17,7 @@ export async function GET(
       },
     },
     async () => {
-      const { role } = await requireAuth();
-      if (role !== "ADMIN") {
-        return errors.forbidden();
-      }
+      await requireAdmin("ADMIN");
       const { id } = await params;
       const tasks = await prisma.task.findMany({
         where: { userId: id },

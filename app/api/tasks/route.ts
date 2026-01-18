@@ -1,7 +1,7 @@
 import { Prisma, TaskStatus, TaskType } from "@prisma/client";
 import { randomUUID } from "crypto";
-import { requireAuth } from "../../../lib/api-auth";
 import { withApiHandler } from "../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../lib/api-guards";
 import { ok } from "../../../lib/api-response";
 import { applyAutomationForTask } from "../../../lib/automation";
 import { badPoints } from "../../../lib/points";
@@ -12,7 +12,6 @@ import { parseBody } from "../../../lib/http/validation";
 import prisma from "../../../lib/prisma";
 import { TASK_STATUS, TASK_TYPE } from "../../../lib/types";
 import { mapTaskWithDependencies } from "../../../lib/mappers/task";
-import { resolveWorkspaceId } from "../../../lib/workspace-context";
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>
   Object.values(TASK_STATUS).includes(value as TaskStatus);
@@ -61,8 +60,7 @@ export async function GET() {
       },
     },
     async () => {
-    const { userId } = await requireAuth();
-    const workspaceId = await resolveWorkspaceId(userId);
+      const { userId, workspaceId } = await requireWorkspaceAuth();
     if (!workspaceId) {
       return ok({ tasks: [] });
     }
@@ -99,7 +97,10 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
+      const { userId, workspaceId } = await requireWorkspaceAuth({
+        domain: "TASK",
+        requireWorkspace: true,
+      });
       const body = await parseBody(request, TaskCreateSchema, {
         code: "TASK_VALIDATION",
       });
@@ -129,10 +130,6 @@ export async function POST(request: Request) {
       } = body;
       if (badPoints(points)) {
         return errors.badRequest("points must be one of 1,2,3,5,8,13,21,34");
-      }
-      const workspaceId = await resolveWorkspaceId(userId);
-      if (!workspaceId) {
-        return errors.badRequest("workspace is required");
       }
       let safeAssigneeId: string | null = assigneeId ?? null;
       if (safeAssigneeId) {

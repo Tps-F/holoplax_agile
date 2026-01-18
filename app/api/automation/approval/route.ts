@@ -1,5 +1,5 @@
-import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import { generateSplitSuggestions } from "../../../../lib/ai-suggestions";
 import {
@@ -15,7 +15,6 @@ import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
 import { TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
-import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 import { logAudit } from "../../../../lib/audit";
 
 const STAGE_COOLDOWN_DAYS = 7;
@@ -90,11 +89,10 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
-      if (!workspaceId) {
-        return errors.badRequest("workspace is required");
-      }
+      const { userId, workspaceId } = await requireWorkspaceAuth({
+        domain: "AUTOMATION",
+        requireWorkspace: true,
+      });
 
       const body = await parseBody(request, AutomationApprovalSchema, {
         code: "AUTOMATION_VALIDATION",

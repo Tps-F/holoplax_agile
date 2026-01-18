@@ -1,21 +1,13 @@
 import { randomBytes } from "crypto";
 import { requireAuth } from "../../../../../lib/api-auth";
 import { withApiHandler } from "../../../../../lib/api-handler";
+import { requireWorkspaceManager } from "../../../../../lib/api-guards";
 import { ok } from "../../../../../lib/api-response";
 import { logAudit } from "../../../../../lib/audit";
 import { WorkspaceInviteCreateSchema } from "../../../../../lib/contracts/workspace";
-import { createDomainErrors } from "../../../../../lib/http/errors";
 import { parseBody } from "../../../../../lib/http/validation";
 import prisma from "../../../../../lib/prisma";
 
-const canManage = async (workspaceId: string, userId: string) => {
-  const membership = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId } },
-  });
-  return membership?.role === "owner" || membership?.role === "admin";
-};
-
-const errors = createDomainErrors("WORKSPACE");
 
 export async function POST(
   request: Request,
@@ -33,7 +25,7 @@ export async function POST(
     async () => {
       const { userId } = await requireAuth();
       const { id } = await params;
-      if (!(await canManage(id, userId))) return errors.forbidden();
+      await requireWorkspaceManager("WORKSPACE", id, userId);
       const body = await parseBody(request, WorkspaceInviteCreateSchema, {
         code: "WORKSPACE_VALIDATION",
       });

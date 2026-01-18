@@ -1,20 +1,12 @@
 import { requireAuth } from "../../../../../../lib/api-auth";
 import { withApiHandler } from "../../../../../../lib/api-handler";
+import { requireWorkspaceManager } from "../../../../../../lib/api-guards";
 import { ok } from "../../../../../../lib/api-response";
 import { logAudit } from "../../../../../../lib/audit";
 import { WorkspaceMemberRoleUpdateSchema } from "../../../../../../lib/contracts/workspace";
-import { createDomainErrors } from "../../../../../../lib/http/errors";
 import { parseBody } from "../../../../../../lib/http/validation";
 import prisma from "../../../../../../lib/prisma";
 
-const canManage = async (workspaceId: string, userId: string) => {
-  const membership = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId } },
-  });
-  return membership?.role === "owner" || membership?.role === "admin";
-};
-
-const errors = createDomainErrors("WORKSPACE");
 
 export async function PATCH(
   request: Request,
@@ -32,7 +24,7 @@ export async function PATCH(
     async () => {
       const { userId } = await requireAuth();
       const { id, userId: targetUserId } = await params;
-      if (!(await canManage(id, userId))) return errors.forbidden();
+      await requireWorkspaceManager("WORKSPACE", id, userId);
       const body = await parseBody(request, WorkspaceMemberRoleUpdateSchema, {
         code: "WORKSPACE_VALIDATION",
       });
@@ -69,7 +61,7 @@ export async function DELETE(
     async () => {
       const { userId } = await requireAuth();
       const { id, userId: targetUserId } = await params;
-      if (!(await canManage(id, userId))) return errors.forbidden();
+      await requireWorkspaceManager("WORKSPACE", id, userId);
       await prisma.workspaceMember.delete({
         where: { workspaceId_userId: { workspaceId: id, userId: targetUserId } },
       });

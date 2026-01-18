@@ -1,12 +1,11 @@
-import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
+import { requireWorkspaceAuth } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import { logAudit } from "../../../../lib/audit";
 import { SprintUpdateSchema } from "../../../../lib/contracts/sprint";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 const errors = createDomainErrors("SPRINT");
 
@@ -24,11 +23,10 @@ export async function PATCH(
       },
     },
     async () => {
-      const { userId } = await requireAuth();
-      const workspaceId = await resolveWorkspaceId(userId);
-      if (!workspaceId) {
-        return errors.badRequest("workspace is required");
-      }
+      const { userId, workspaceId } = await requireWorkspaceAuth({
+        domain: "SPRINT",
+        requireWorkspace: true,
+      });
       const { id } = await params;
       const body = await parseBody(request, SprintUpdateSchema, {
         code: "SPRINT_VALIDATION",

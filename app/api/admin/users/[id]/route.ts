@@ -1,5 +1,5 @@
-import { requireAuth } from "../../../../../lib/api-auth";
 import { withApiHandler } from "../../../../../lib/api-handler";
+import { requireAdmin } from "../../../../../lib/api-guards";
 import { ok } from "../../../../../lib/api-response";
 import { logAudit } from "../../../../../lib/audit";
 import { AdminUserUpdateSchema } from "../../../../../lib/contracts/admin";
@@ -24,10 +24,7 @@ export async function PATCH(
       },
     },
     async () => {
-      const { role, userId } = await requireAuth();
-      if (role !== "ADMIN") {
-        return errors.forbidden();
-      }
+      const { userId } = await requireAdmin("ADMIN");
       const { id } = await params;
       const body = await parseBody(request, AdminUserUpdateSchema, {
         code: "ADMIN_VALIDATION",
