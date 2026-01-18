@@ -7,6 +7,19 @@ import { VelocityEntryDTO } from "../../lib/types";
 export default function VelocityPage() {
   const { workspaceId, ready } = useWorkspaceId();
   const [history, setHistory] = useState<VelocityEntryDTO[]>([]);
+  const [summary, setSummary] = useState<{
+    avg: number;
+    variance: number;
+    stdDev: number;
+    stableRange: string | null;
+  } | null>(null);
+  const [pbiSummary, setPbiSummary] = useState<{
+    sprintId: string | null;
+    doneCount: number;
+    donePoints: number;
+    totalCount: number;
+    completionRate: number;
+  } | null>(null);
   const [form, setForm] = useState({ name: "Sprint-1", points: 22, range: "20-26" });
 
   const fetchVelocity = useCallback(async () => {
@@ -18,6 +31,8 @@ export default function VelocityPage() {
     const res = await fetch("/api/velocity");
     const data = await res.json();
     setHistory(data.velocity ?? []);
+    setSummary(data.summary ?? null);
+    setPbiSummary(data.pbi ?? null);
     const nextNum = (data.velocity?.length ?? 0) + 1;
     setForm((p) => ({ ...p, name: `Sprint-${nextNum}` }));
   }, [ready, workspaceId]);
@@ -52,6 +67,28 @@ export default function VelocityPage() {
       </header>
 
       <section className="border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800">
+            <p className="text-xs text-slate-500">持続ベロシティ</p>
+            <p className="text-2xl font-semibold text-slate-900">
+              {summary ? summary.avg.toFixed(1) : "—"} pt
+            </p>
+            <p className="text-xs text-slate-500">
+              分散: {summary ? summary.variance.toFixed(1) : "—"} / 範囲:{" "}
+              {summary?.stableRange ?? "—"}
+            </p>
+          </div>
+          <div className="border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800">
+            <p className="text-xs text-slate-500">PBI消化</p>
+            <p className="text-2xl font-semibold text-slate-900">
+              {pbiSummary ? `${pbiSummary.doneCount}/${pbiSummary.totalCount}` : "—"}
+            </p>
+            <p className="text-xs text-slate-500">
+              消化率: {pbiSummary ? Math.round(pbiSummary.completionRate * 100) : "—"}%
+            </p>
+          </div>
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-3">
           {history.map((item) => (
             <div

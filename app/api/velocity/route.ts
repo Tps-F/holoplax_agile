@@ -20,7 +20,52 @@ export async function GET() {
       where: { workspaceId },
       orderBy: { createdAt: "desc" },
     });
-    return ok({ velocity });
+    const recent = velocity.slice(0, 5).map((entry) => entry.points);
+    const avg =
+      recent.length > 0 ? recent.reduce((sum, value) => sum + value, 0) / recent.length : 0;
+    const variance =
+      recent.length > 0
+        ? recent.reduce((sum, value) => sum + Math.pow(value - avg, 2), 0) / recent.length
+        : 0;
+    const stdDev = Math.sqrt(variance);
+
+    const sprints = await prisma.sprint.findMany({
+      where: { workspaceId, status: "CLOSED" },
+      orderBy: { endedAt: "desc" },
+      take: 3,
+    });
+    const sprintIds = sprints.map((sprint) => sprint.id);
+    const pbiTasks = sprintIds.length
+      ? await prisma.task.findMany({
+          where: { workspaceId, sprintId: { in: sprintIds }, type: "PBI" },
+          select: { sprintId: true, status: true, points: true },
+        })
+      : [];
+    const latestSprintId = sprints[0]?.id ?? null;
+    const latestPbiTasks = latestSprintId
+      ? pbiTasks.filter((task) => task.sprintId === latestSprintId)
+      : [];
+    const pbiDone = latestPbiTasks.filter((task) => task.status === "DONE");
+    const pbiDonePoints = pbiDone.reduce((sum, task) => sum + task.points, 0);
+    const pbiCompletionRate =
+      latestPbiTasks.length > 0 ? pbiDone.length / latestPbiTasks.length : 0;
+
+    return ok({
+      velocity,
+      summary: {
+        avg,
+        variance,
+        stdDev,
+        stableRange: avg ? `${Math.max(0, avg - stdDev).toFixed(1)}-${(avg + stdDev).toFixed(1)}` : null,
+      },
+      pbi: {
+        sprintId: latestSprintId,
+        doneCount: pbiDone.length,
+        donePoints: pbiDonePoints,
+        totalCount: latestPbiTasks.length,
+        completionRate: pbiCompletionRate,
+      },
+    });
   } catch (error) {
     const authError = handleAuthError(error);
     if (authError) return authError;
