@@ -1,4 +1,11 @@
 import { requestAiChat } from "./ai-provider";
+import { storyPointOptions } from "./points";
+
+const getNearestStoryPoint = (val: number) => {
+  return storyPointOptions.reduce((prev: number, curr: number) =>
+    Math.abs(curr - val) < Math.abs(prev - val) ? curr : prev
+  );
+};
 
 export type SplitItem = {
   title: string;
@@ -13,7 +20,10 @@ const fallbackSplit = (title: string, description: string, points: number): Spli
   const count = points > 8 ? 3 : 2;
   return Array.from({ length: count }, (_, idx) => ({
     title: `${title} / 分割${idx + 1}`,
-    points: idx === count - 1 ? Math.max(1, points - basePoints * (count - 1)) : basePoints,
+    points:
+      idx === count - 1
+        ? getNearestStoryPoint(Math.max(1, points - basePoints * (count - 1)))
+        : getNearestStoryPoint(basePoints),
     urgency: "中",
     risk: description.includes("外部") ? "高" : "中",
     detail: "小さく完了条件を定義し、依存を先に解消。",
@@ -52,7 +62,7 @@ export async function generateSplitSuggestions(params: {
   try {
     const result = await requestAiChat({
       system: "あなたはタスク分解アシスタントです。JSON配列のみで返してください。",
-      user: `以下のタスクを2-4件に分解し、JSON配列で返してください: [{ "title": string, "points": number, "urgency": "低|中|高", "risk": "低|中|高", "detail": string }]\nタイトル: ${title}\n説明: ${description}\nポイント: ${points}`,
+      user: `以下のタスクを2-4件に分解し、JSON配列で返してください: [{ "title": string, "points": number, "urgency": "低|中|高", "risk": "低|中|高", "detail": string }]\nポイントは必ずフィボナッチ数(1, 2, 3, 5, 8, 13, 21, 34)から選んでください。\nタイトル: ${title}\n説明: ${description}\nポイント: ${points}`,
       maxTokens: 220,
     });
     if (result?.content) {
