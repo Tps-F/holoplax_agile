@@ -27,12 +27,10 @@ type NavItem = {
 
 const navSections: {
   heading: string;
-  description?: string;
   items: NavItem[];
 }[] = [
   {
     heading: "タスク管理",
-    description: "やるべきこと・スプリント中の対応・レビュー用の一覧",
     items: [
       { label: "バックログ", href: "/backlog", icon: Inbox, tooltip: "TODOを整理して次に着手する候補を決める" },
       { label: "スプリント", href: "/sprint", icon: KanbanSquare, tooltip: "今週のスプリントと容量管理" },
@@ -42,7 +40,6 @@ const navSections: {
   },
   {
     heading: "ワークスペースと分析",
-    description: "チーム/メンバー周りの管理や履歴観察",
     items: [
       { label: "ワークスペース", href: "/workspaces", icon: Users, tooltip: "参加中ワークスペースを管理" },
       { label: "ベロシティ", href: "/velocity", icon: BarChart3, tooltip: "過去スプリントのベロシティを確認" },
@@ -50,14 +47,12 @@ const navSections: {
   },
   {
     heading: "自動化",
-    description: "AIによる委任・分解・サポートを制御",
     items: [
       { label: "自動化", href: "/automation", icon: Zap, tooltip: "スコアに応じた自動化ポリシーを見る" },
     ],
   },
   {
     heading: "設定",
-    description: "認証・権限・AI設定",
     items: [
       { label: "設定", href: "/settings", icon: Settings, tooltip: "個人設定や認証状態を確認" },
       { label: "ユーザー管理", href: "/admin/users", icon: Users, tooltip: "管理者向けにユーザーを管理", adminOnly: true },
@@ -82,9 +77,6 @@ const NavigationLinks = memo(function NavigationLinks({
           <div className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
             {section.heading}
           </div>
-          {section.description ? (
-            <p className="text-[11px] text-slate-500">{section.description}</p>
-          ) : null}
           <div className="mt-1 flex flex-col gap-1">
             {section.items
               .filter((item) => !item.adminOnly || isAdmin)
