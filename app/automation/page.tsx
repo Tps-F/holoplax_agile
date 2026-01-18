@@ -6,12 +6,18 @@ import { AutomationSettingDTO } from "../../lib/types";
 
 export default function AutomationPage() {
   const { workspaceId, ready } = useWorkspaceId();
-  const [thresholds, setThresholds] = useState<AutomationSettingDTO>({ low: 35, high: 70 });
+  const [thresholds, setThresholds] = useState<AutomationSettingDTO>({
+    low: 35,
+    high: 70,
+    stage: 0,
+  });
   const [dirty, setDirty] = useState(false);
+  const effectiveLow = thresholds.effectiveLow ?? thresholds.low;
+  const effectiveHigh = thresholds.effectiveHigh ?? thresholds.high;
   const rules = [
-    { name: "低スコア自動委任", range: `< ${thresholds.low}`, status: "On" },
-    { name: "中スコア分解提案", range: `${thresholds.low}-${thresholds.high}`, status: "On" },
-    { name: "高スコア分割必須", range: `> ${thresholds.high}`, status: "On" },
+    { name: "低スコア自動委任", range: `< ${effectiveLow}`, status: "On" },
+    { name: "中スコア分解提案", range: `${effectiveLow}-${effectiveHigh}`, status: "On" },
+    { name: "高スコア分割必須", range: `> ${effectiveHigh}`, status: "On" },
   ];
 
   const fetchThresholds = useCallback(async () => {
@@ -23,7 +29,13 @@ export default function AutomationPage() {
     }
     const res = await fetch("/api/automation");
     const data = await res.json();
-    setThresholds({ low: data.low ?? 35, high: data.high ?? 70 });
+    setThresholds({
+      low: data.low ?? 35,
+      high: data.high ?? 70,
+      stage: data.stage ?? 0,
+      effectiveLow: data.effectiveLow ?? data.low ?? 35,
+      effectiveHigh: data.effectiveHigh ?? data.high ?? 70,
+    });
     setDirty(false);
   }, [ready, workspaceId]);
 
@@ -39,6 +51,24 @@ export default function AutomationPage() {
       body: JSON.stringify(thresholds),
     });
     setDirty(false);
+  };
+
+  const resetStage = async () => {
+    const res = await fetch("/api/automation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ low: thresholds.low, high: thresholds.high, stage: 0 }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setThresholds({
+        low: data.low ?? thresholds.low,
+        high: data.high ?? thresholds.high,
+        stage: data.stage ?? 0,
+        effectiveLow: data.effectiveLow ?? data.low ?? thresholds.low,
+        effectiveHigh: data.effectiveHigh ?? data.high ?? thresholds.high,
+      });
+    }
   };
 
   return (
@@ -82,6 +112,20 @@ export default function AutomationPage() {
               保存
             </button>
           </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+          <span className="border border-slate-200 bg-slate-50 px-2 py-1">
+            ステージ {thresholds.stage ?? 0}
+          </span>
+          <span className="border border-slate-200 bg-slate-50 px-2 py-1">
+            有効しきい値 {effectiveLow} / {effectiveHigh}
+          </span>
+          <button
+            onClick={resetStage}
+            className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
+          >
+            ステージをリセット
+          </button>
         </div>
       </header>
 

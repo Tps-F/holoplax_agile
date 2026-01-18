@@ -8,6 +8,8 @@ import {
 import prisma from "../../../lib/prisma";
 import { resolveWorkspaceId } from "../../../lib/workspace-context";
 
+const STAGE_STEP = 5;
+
 export async function GET() {
   try {
     const { userId } = await requireAuth();
@@ -20,7 +22,15 @@ export async function GET() {
       update: {},
       create: { low: 35, high: 70, userId, workspaceId },
     });
-    return ok({ low: current.low, high: current.high, workspaceId });
+    const stage = current.stage ?? 0;
+    return ok({
+      low: current.low,
+      high: current.high,
+      stage,
+      effectiveLow: current.low + stage * STAGE_STEP,
+      effectiveHigh: current.high + stage * STAGE_STEP,
+      workspaceId,
+    });
   } catch (error) {
     const authError = handleAuthError(error);
     if (authError) return authError;
@@ -39,6 +49,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const low = Number(body.low);
     const high = Number(body.high);
+    const stage =
+      body.stage !== undefined && body.stage !== null ? Number(body.stage) : undefined;
     if (!Number.isFinite(low) || !Number.isFinite(high)) {
       return badRequest("low/high are required");
     }
@@ -48,12 +60,26 @@ export async function POST(request: Request) {
     const saved = existing
       ? await prisma.userAutomationSetting.update({
           where: { id: existing.id },
-          data: { low, high },
+          data: { low, high, ...(Number.isFinite(stage) ? { stage } : {}) },
         })
       : await prisma.userAutomationSetting.create({
-          data: { low, high, userId, workspaceId },
+          data: {
+            low,
+            high,
+            stage: Number.isFinite(stage) ? stage : 0,
+            userId,
+            workspaceId,
+          },
         });
-    return ok({ low: saved.low, high: saved.high, workspaceId });
+    const nextStage = saved.stage ?? 0;
+    return ok({
+      low: saved.low,
+      high: saved.high,
+      stage: nextStage,
+      effectiveLow: saved.low + nextStage * STAGE_STEP,
+      effectiveHigh: saved.high + nextStage * STAGE_STEP,
+      workspaceId,
+    });
   } catch (error) {
     const authError = handleAuthError(error);
     if (authError) return authError;
