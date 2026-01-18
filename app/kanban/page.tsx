@@ -175,11 +175,11 @@ export default function KanbanPage() {
                   className={`min-w-0 break-words border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 transition ${draggingId === item.id ? "opacity-60" : ""
                     }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-2 overflow-hidden">
                     <p className="break-words font-semibold text-slate-900">
                       {item.title}
                     </p>
-                    <div className="flex items-center gap-1">
+                    <div className="flex shrink-0 items-center gap-1">
                       <span className="shrink-0 border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                         {taskTypeLabels[(item.type ?? TASK_TYPE.PBI) as TaskType]}
                       </span>
