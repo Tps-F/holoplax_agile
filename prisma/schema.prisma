@@ -199,6 +199,7 @@ model Workspace {
   statusEvents           TaskStatusEvent[]
   memoryClaims           MemoryClaim[]
   memoryMetrics          MemoryMetric[]
+  focusQueues            FocusQueue[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
 }
@@ -450,6 +451,16 @@ model MemoryMetric {
   @@unique([typeId, workspaceId, windowStart, windowEnd])
   @@index([workspaceId, windowStart])
   @@index([userId, windowStart])
+}
+
+model FocusQueue {
+  id          String     @id @default(cuid())
+  workspaceId String
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items       Json
+  computedAt  DateTime   @default(now())
+
+  @@index([workspaceId, computedAt])
 }
 
 model IntakeItem {
