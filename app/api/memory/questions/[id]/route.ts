@@ -1,0 +1,106 @@
+import { requireAuth } from "../../../../../lib/api-auth";
+import {
+  badRequest,
+  handleAuthError,
+  ok,
+  serverError,
+} from "../../../../../lib/api-response";
+import prisma from "../../../../../lib/prisma";
+import { resolveWorkspaceId } from "../../../../../lib/workspace-context";
+
+const pickClaimValue = (question: {
+  valueStr: string | null;
+  valueNum: number | null;
+  valueBool: boolean | null;
+  valueJson: unknown | null;
+}) => {
+  return {
+    valueStr: question.valueStr,
+    valueNum: question.valueNum,
+    valueBool: question.valueBool,
+    valueJson: question.valueJson as object | null,
+  };
+};
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } },
+) {
+  try {
+    const { userId } = await requireAuth();
+    const workspaceId = await resolveWorkspaceId(userId);
+    const questionId = params.id;
+    const body = await request.json();
+    const action = String(body.action ?? "");
+    if (!questionId || !action) {
+      return badRequest("id and action are required");
+    }
+
+    const question = await prisma.memoryQuestion.findFirst({
+      where: { id: questionId },
+      include: { type: true },
+    });
+    if (!question) {
+      return badRequest("invalid question");
+    }
+
+    const belongsToUser = question.userId === userId;
+    const belongsToWorkspace = workspaceId && question.workspaceId === workspaceId;
+    if (!belongsToUser && !belongsToWorkspace) {
+      return badRequest("not allowed");
+    }
+
+    const now = new Date();
+    let nextStatus: "ACCEPTED" | "REJECTED" | "HOLD";
+    if (action === "accept") {
+      nextStatus = "ACCEPTED";
+    } else if (action === "reject") {
+      nextStatus = "REJECTED";
+    } else if (action === "hold") {
+      nextStatus = "HOLD";
+    } else {
+      return badRequest("invalid action");
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      if (action === "accept") {
+        await tx.memoryClaim.updateMany({
+          where:
+            question.type.scope === "USER"
+              ? { typeId: question.typeId, userId, status: "ACTIVE" }
+              : { typeId: question.typeId, workspaceId, status: "ACTIVE" },
+          data: { status: "STALE", validTo: now },
+        });
+        const claimValue = pickClaimValue(question);
+        await tx.memoryClaim.create({
+          data: {
+            typeId: question.typeId,
+            userId: question.type.scope === "USER" ? userId : null,
+            workspaceId: question.type.scope === "WORKSPACE" ? workspaceId : null,
+            ...claimValue,
+            confidence: question.confidence,
+            source: "INFERRED",
+            status: "ACTIVE",
+            validFrom: now,
+          },
+        });
+      }
+
+      return tx.memoryQuestion.update({
+        where: { id: question.id },
+        data: { status: nextStatus },
+        select: {
+          id: true,
+          status: true,
+        },
+      });
+    });
+
+    return ok({ question: updated });
+  } catch (error) {
+    const authError = handleAuthError(error);
+    if (authError) return authError;
+    console.error("PATCH /api/memory/questions/[id] error", error);
+    return serverError("failed to update memory question");
+  }
+}
