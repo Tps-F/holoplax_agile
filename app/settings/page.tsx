@@ -5,6 +5,52 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceId } from "../components/use-workspace-id";
 
+type MemoryTypeRow = {
+  id: string;
+  key: string;
+  scope: "USER" | "WORKSPACE";
+  valueType: string;
+  unit?: string | null;
+  granularity: string;
+  updatePolicy: string;
+  decayDays?: number | null;
+  description?: string | null;
+};
+
+type MemoryClaimRow = {
+  id: string;
+  typeId: string;
+  valueStr?: string | null;
+  valueNum?: number | null;
+  valueBool?: boolean | null;
+  valueJson?: unknown;
+  status: string;
+};
+
+const formatClaimValue = (type: MemoryTypeRow, claim?: MemoryClaimRow) => {
+  if (!claim) return "";
+  if (type.valueType === "STRING") return claim.valueStr ?? "";
+  if (type.valueType === "NUMBER" || type.valueType === "DURATION_MS" || type.valueType === "RATIO") {
+    return claim.valueNum !== null && claim.valueNum !== undefined ? String(claim.valueNum) : "";
+  }
+  if (type.valueType === "BOOL") {
+    return claim.valueBool === null || claim.valueBool === undefined
+      ? ""
+      : claim.valueBool
+        ? "true"
+        : "false";
+  }
+  if (
+    type.valueType === "JSON" ||
+    type.valueType === "HISTOGRAM_24x7" ||
+    type.valueType === "RATIO_BY_TYPE"
+  ) {
+    if (claim.valueJson === null || claim.valueJson === undefined) return "";
+    return JSON.stringify(claim.valueJson, null, 2);
+  }
+  return "";
+};
+
 export default function SettingsPage() {
   const { update } = useSession();
   const router = useRouter();
@@ -15,6 +61,12 @@ export default function SettingsPage() {
   const [dirty, setDirty] = useState(false);
   const [account, setAccount] = useState({ name: "", email: "", image: "" });
   const [accountDirty, setAccountDirty] = useState(false);
+  const [memoryTypes, setMemoryTypes] = useState<MemoryTypeRow[]>([]);
+  const [memoryClaims, setMemoryClaims] = useState<Record<string, MemoryClaimRow>>({});
+  const [memoryDrafts, setMemoryDrafts] = useState<Record<string, string>>({});
+  const [memoryLoading, setMemoryLoading] = useState(false);
+  const [memorySavingId, setMemorySavingId] = useState<string | null>(null);
+  const [memoryRemovingId, setMemoryRemovingId] = useState<string | null>(null);
 
   const fetchThresholds = useCallback(async () => {
     if (!ready) return;
@@ -43,11 +95,39 @@ export default function SettingsPage() {
     setAccountDirty(false);
   }, []);
 
+  const fetchMemory = useCallback(async () => {
+    if (!ready) return;
+    setMemoryLoading(true);
+    try {
+      const res = await fetch("/api/memory");
+      if (!res.ok) return;
+      const data = await res.json();
+      const types: MemoryTypeRow[] = data.types ?? [];
+      const claimMap: Record<string, MemoryClaimRow> = {};
+      (data.userClaims ?? []).forEach((claim: MemoryClaimRow) => {
+        claimMap[claim.typeId] = claim;
+      });
+      (data.workspaceClaims ?? []).forEach((claim: MemoryClaimRow) => {
+        claimMap[claim.typeId] = claim;
+      });
+      const drafts: Record<string, string> = {};
+      types.forEach((type) => {
+        drafts[type.id] = formatClaimValue(type, claimMap[type.id]);
+      });
+      setMemoryTypes(types);
+      setMemoryClaims(claimMap);
+      setMemoryDrafts(drafts);
+    } finally {
+      setMemoryLoading(false);
+    }
+  }, [ready, workspaceId]);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void fetchThresholds();
     void fetchAccount();
-  }, [fetchThresholds, fetchAccount]);
+    void fetchMemory();
+  }, [fetchThresholds, fetchAccount, fetchMemory]);
 
   const saveThresholds = async () => {
     await fetch("/api/automation", {
@@ -56,6 +136,110 @@ export default function SettingsPage() {
       body: JSON.stringify({ low, high }),
     });
     setDirty(false);
+  };
+
+  const handleMemoryDraftChange = (typeId: string, value: string) => {
+    setMemoryDrafts((prev) => ({ ...prev, [typeId]: value }));
+  };
+
+  const saveMemory = async (type: MemoryTypeRow) => {
+    const value = memoryDrafts[type.id];
+    if (value === undefined || value === "") {
+      window.alert("値を入力してください。");
+      return;
+    }
+    setMemorySavingId(type.id);
+    try {
+      const res = await fetch("/api/memory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ typeId: type.id, value }),
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.claim) {
+        setMemoryClaims((prev) => ({ ...prev, [type.id]: data.claim }));
+        setMemoryDrafts((prev) => ({
+          ...prev,
+          [type.id]: formatClaimValue(type, data.claim),
+        }));
+      }
+    } finally {
+      setMemorySavingId(null);
+    }
+  };
+
+  const removeMemory = async (type: MemoryTypeRow) => {
+    const claim = memoryClaims[type.id];
+    if (!claim) return;
+    setMemoryRemovingId(claim.id);
+    try {
+      const res = await fetch("/api/memory", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ claimId: claim.id }),
+      });
+      if (!res.ok) return;
+      setMemoryClaims((prev) => {
+        const next = { ...prev };
+        delete next[type.id];
+        return next;
+      });
+      setMemoryDrafts((prev) => ({ ...prev, [type.id]: "" }));
+    } finally {
+      setMemoryRemovingId(null);
+    }
+  };
+
+  const userMemoryTypes = memoryTypes.filter((type) => type.scope === "USER");
+  const workspaceMemoryTypes = memoryTypes.filter((type) => type.scope === "WORKSPACE");
+
+  const renderMemoryInput = (type: MemoryTypeRow) => {
+    const value = memoryDrafts[type.id] ?? "";
+    if (
+      type.valueType === "JSON" ||
+      type.valueType === "HISTOGRAM_24x7" ||
+      type.valueType === "RATIO_BY_TYPE"
+    ) {
+      return (
+        <textarea
+          value={value}
+          onChange={(e) => handleMemoryDraftChange(type.id, e.target.value)}
+          rows={3}
+          className="w-full border border-slate-200 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#2323eb]"
+          placeholder="JSONで入力"
+        />
+      );
+    }
+    if (type.valueType === "BOOL") {
+      return (
+        <select
+          value={value}
+          onChange={(e) => handleMemoryDraftChange(type.id, e.target.value)}
+          className="w-full border border-slate-200 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#2323eb]"
+        >
+          <option value="">未設定</option>
+          <option value="true">true</option>
+          <option value="false">false</option>
+        </select>
+      );
+    }
+    const inputType =
+      type.valueType === "NUMBER" || type.valueType === "RATIO" || type.valueType === "DURATION_MS"
+        ? "number"
+        : "text";
+    const stepValue =
+      inputType === "number" ? (type.valueType === "RATIO" ? "0.01" : "1") : undefined;
+    return (
+      <input
+        type={inputType}
+        value={value}
+        onChange={(e) => handleMemoryDraftChange(type.id, e.target.value)}
+        className="w-full border border-slate-200 px-3 py-2 text-xs text-slate-800 outline-none focus:border-[#2323eb]"
+        placeholder={type.unit ? `unit: ${type.unit}` : "値を入力"}
+        step={stepValue}
+      />
+    );
   };
 
   return (
@@ -217,6 +401,120 @@ export default function SettingsPage() {
             >
               保存
             </button>
+          </div>
+        </div>
+
+        <div className="border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900">Memory</h3>
+              <p className="text-sm text-slate-600">
+                ユーザー/ワークスペースの前提情報を管理します。
+              </p>
+            </div>
+            {memoryLoading ? (
+              <span className="text-xs text-slate-500">読み込み中...</span>
+            ) : null}
+          </div>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                User
+              </p>
+              {userMemoryTypes.length ? (
+                userMemoryTypes.map((type) => (
+                  <div
+                    key={type.id}
+                    className="border border-slate-200 bg-slate-50 px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{type.key}</p>
+                        {type.description ? (
+                          <p className="text-xs text-slate-500">{type.description}</p>
+                        ) : null}
+                      </div>
+                      <span className="border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-500">
+                        {type.valueType}
+                      </span>
+                    </div>
+                    <div className="mt-3">{renderMemoryInput(type)}</div>
+                    <div className="mt-3 flex items-center gap-2 text-[11px]">
+                      <button
+                        onClick={() => saveMemory(type)}
+                        disabled={memorySavingId === type.id}
+                        className="border border-slate-200 bg-white px-2 py-1 text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb] disabled:opacity-50"
+                      >
+                        保存
+                      </button>
+                      {memoryClaims[type.id] ? (
+                        <button
+                          onClick={() => removeMemory(type)}
+                          disabled={memoryRemovingId === memoryClaims[type.id]?.id}
+                          className="border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700 transition hover:border-rose-300 disabled:opacity-50"
+                        >
+                          削除
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-slate-500">ユーザー向けMemoryは未設定です。</p>
+              )}
+            </div>
+            <div className="grid gap-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Workspace
+              </p>
+              {workspaceId ? (
+                workspaceMemoryTypes.length ? (
+                  workspaceMemoryTypes.map((type) => (
+                    <div
+                      key={type.id}
+                      className="border border-slate-200 bg-slate-50 px-4 py-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">{type.key}</p>
+                          {type.description ? (
+                            <p className="text-xs text-slate-500">{type.description}</p>
+                          ) : null}
+                        </div>
+                        <span className="border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-500">
+                          {type.valueType}
+                        </span>
+                      </div>
+                      <div className="mt-3">{renderMemoryInput(type)}</div>
+                      <div className="mt-3 flex items-center gap-2 text-[11px]">
+                        <button
+                          onClick={() => saveMemory(type)}
+                          disabled={memorySavingId === type.id}
+                          className="border border-slate-200 bg-white px-2 py-1 text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb] disabled:opacity-50"
+                        >
+                          保存
+                        </button>
+                        {memoryClaims[type.id] ? (
+                          <button
+                            onClick={() => removeMemory(type)}
+                            disabled={memoryRemovingId === memoryClaims[type.id]?.id}
+                            className="border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700 transition hover:border-rose-300 disabled:opacity-50"
+                          >
+                            削除
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-500">ワークスペース向けMemoryは未設定です。</p>
+                )
+              ) : (
+                <p className="text-xs text-slate-500">
+                  ワークスペースを選択すると表示されます。
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
