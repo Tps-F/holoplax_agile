@@ -110,7 +110,7 @@ export default function AdminAiSettingsPage() {
                 モデル
                 <div className="grid gap-2">
                   <select
-                    value={modelPresets.includes(setting.model) ? setting.model : ""}
+                    value={modelPresets.includes(setting.model) ? setting.model : modelDefault}
                     onChange={(e) =>
                       setSetting((prev) =>
                         prev ? { ...prev, model: e.target.value } : prev,
@@ -118,24 +118,12 @@ export default function AdminAiSettingsPage() {
                     }
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   >
-                    <option value="">候補から選択</option>
                     {modelPresets.map((model) => (
                       <option key={model} value={model}>
                         {model}
                       </option>
                     ))}
                   </select>
-                  <input
-                    value={setting.model}
-                    onChange={(e) =>
-                      setSetting((prev) => (prev ? { ...prev, model: e.target.value } : prev))
-                    }
-                    placeholder={modelDefault}
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                  />
-                  <p className="text-[11px] text-slate-500">
-                    LiteLLMの設定で許可したモデル名を入力してください。
-                  </p>
                 </div>
               </label>
               <label className="grid gap-1 text-xs text-slate-500">
