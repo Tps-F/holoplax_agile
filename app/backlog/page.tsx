@@ -748,8 +748,8 @@ export default function BacklogPage() {
               手入力＋後でインポートを追加。点数と緊急度/リスクをセットしてスプリントに送れるように。
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 border border-slate-200 bg-white p-1 text-xs text-slate-700">
+          <div className="flex items-center gap-2 whitespace-nowrap">
+            <div className="flex items-center gap-2 whitespace-nowrap border border-slate-200 bg-white p-1 text-xs text-slate-700">
               <button
                 onClick={() => setView("product")}
                 className={`px-3 py-1 transition ${view === "product"
@@ -811,7 +811,7 @@ export default function BacklogPage() {
               件
             </span>
           </div>
-          <div className="mt-4 grid gap-3">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {items
               .filter(
                 (item) =>
@@ -919,7 +919,7 @@ export default function BacklogPage() {
                   </h2>
                   <span className="text-xs text-slate-500">{bucket.length} 件</span>
                 </div>
-                <div className="grid gap-3">
+                <div className="grid gap-3 sm:grid-cols-2">
                   {bucket.map((item) => (
                     <div
                       key={item.id}
