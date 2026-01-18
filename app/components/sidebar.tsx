@@ -17,10 +17,10 @@ import { memo, useEffect } from "react";
 import { useWorkspaceStore } from "../../lib/stores/workspace-store";
 
 export const navItems = [
-  { label: "ダッシュボード", href: "/", icon: LayoutDashboard },
   { label: "バックログ", href: "/backlog", icon: Inbox },
   { label: "スプリント", href: "/sprint", icon: KanbanSquare },
   { label: "カンバン", href: "/kanban", icon: KanbanSquare },
+  { label: "レビュー", href: "/review", icon: LayoutDashboard },
   { label: "ワークスペース", href: "/workspaces", icon: Users },
   { label: "ベロシティ", href: "/velocity", icon: BarChart3 },
   { label: "自動化", href: "/automation", icon: Zap },

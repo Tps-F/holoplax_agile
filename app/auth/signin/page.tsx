@@ -69,10 +69,10 @@ export default function SignInPage() {
                 {mode === "signup" ? "新規登録" : "ログイン"}
               </h2>
               <Link
-                href="/"
+                href="/backlog"
                 className="text-xs text-slate-500 hover:text-slate-900"
               >
-                ダッシュボードへ
+                バックログへ
               </Link>
             </div>
 
