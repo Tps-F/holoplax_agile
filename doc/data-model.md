@@ -9,8 +9,9 @@
       - fields: id, workspaceId, title, description, horizon, successCriteria, status, createdAt, updatedAt
       - 役割: 長期の成果軸。PBI/EPICが紐づく起点
   - WorkItem（現行Taskを拡張して統合）
-      - fields: id, workspaceId, title, description, type(EPIC/PBI/TASK/ROUTINE), parentId, status(BACKLOG/
-  SPRINT/DONE), points, urgency, risk, dueDate, tags, assigneeId, sprintId, createdAt, updatedAt
+      - fields: id, workspaceId, title, description, definitionOfDone, checklist, type(EPIC/PBI/TASK/ROUTINE),
+  parentId, status(BACKLOG/SPRINT/DONE), points, urgency, risk, dueDate, tags, assigneeId, sprintId,
+  createdAt, updatedAt
       - 役割: 実務の核。親子で階層を表現
   - Dependency（TaskDependency）
       - fields: taskId, dependsOnId
@@ -21,9 +22,15 @@
   - SprintMetrics（追加案）
       - fields: sprintId, committedPoints, completedPoints, carryoverPoints, velocity, wipAvg
       - 役割: ベロシティの「持続性」を測る基盤
-  - RoutineRule（追加案）
+  - RoutineRule
       - fields: workItemId, cadence(daily/weekly), nextAt, timezone
       - 役割: ルーティン再発生のルール
+  - UserAutomationSetting
+      - fields: userId, workspaceId, low, high, stage, lastStageAt
+      - 役割: 自動化しきい値の段階引き上げ（個別最適）
+  - AutomationStageHistory
+      - fields: userId, workspaceId, stage, reason, createdAt
+      - 役割: 自動化しきい値の更新履歴
   - 主要ルール（合意）
       - EPICはバックログに留め、Sprintに直接入れない
       - ROUTINEはSprintに混ぜてもOK（別枠も許容）
@@ -43,8 +50,8 @@
       - fields: id, scope(user/workspace), typeId, windowStart, windowEnd, value, computedAt
       - 役割: 動的な傾向の期間集計（rollingやEMA前提）
   - MemoryQuestion（確認モーダル）
-      - fields: id, scope(user/workspace), memoryType, hypothesisValue, confidence, status(pending/accepted/
-  rejected), createdAt
+      - fields: id, scope(user/workspace), typeId, value(string/number/bool/json), confidence,
+  status(pending/accepted/rejected/hold), createdAt, updatedAt
       - 確信度0.7以上で提示、ユーザーが肯定/否定/保留
   - MemorySummary（要約）
       - fields: id, scope, summaryText, periodStart, periodEnd
@@ -68,15 +75,13 @@
 
   - IntakeItem
       - fields: id, workspaceId, source(slack/discord/manual), payload, createdAt
-  - AutomationProposal
-      - fields: id, taskId, type(split/score/prep), rationale, confidence, createdAt
-  - ApprovalDecision
-      - fields: id, proposalId, decision(approve/reject/hold), actorId, createdAt
-  - AutomationExecution
-      - fields: id, proposalId, resultType(draft_email/impl_plan/checklist), output, createdAt
-      - 「実行」といっても下準備アウトプットの生成までに限定
-  - AiSuggestion（現行）
+  - AiSuggestion
+      - fields: id, taskId, type(TIP/SCORE/SPLIT), output, createdAt
       - 生成物の保存（アーティファクト）
+  - AiPrepOutput
+      - fields: id, taskId, type(EMAIL/IMPLEMENTATION/CHECKLIST), status(PENDING/APPROVED/APPLIED/REJECTED),
+  output, createdAt
+      - AI下準備のアウトプット
   - AuditLog（現行）
       - AI使用のコスト/トークン/モデル/プロバイダの監査
   - FocusQueue（やるべきこと3件）

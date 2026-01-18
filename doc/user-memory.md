@@ -128,6 +128,10 @@ y_hat_t = alpha * y_t + (1 - alpha) * y_hat_{t-1}
 - ai_trust_state: 提案受容度（accept / edit / delegate / approval latency から推定）
 まずは「指数移動平均 + 不確実性（分散）」程度でも実運用は可能。
 
+### 実装メモ（現状）
+- flow_state は lead_time / wip / throughput から簡易スコアで算出
+- ai_trust_state は AI出力数に対する適用数（AuditLog + AiPrepOutput）で算出
+
 ## 将来拡張メモ（予測/介入）
 - 予測: Time-to-done は生存分析（締切内完了確率や残時間分布）
 - 介入: 文脈付きバンディット + 安全制約（高リスク操作は信頼状態が高い時のみ）

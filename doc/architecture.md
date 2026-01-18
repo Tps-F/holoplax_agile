@@ -26,6 +26,15 @@ flowchart LR
 
 ## Processing Flows
 
+### Plan/Execute/Review Navigation
+```mermaid
+flowchart LR
+  Home[/] --> Backlog[/backlog (Plan)]
+  Backlog --> Sprint[/sprint (Execute)]
+  Sprint --> Review[/review (Review)]
+  Review --> Backlog
+```
+
 ### Task Lifecycle + Status Events
 ```mermaid
 flowchart LR
@@ -52,13 +61,14 @@ flowchart LR
 ### AI Collaboration Flow
 ```mermaid
 flowchart LR
-  Intake[IntakeItem] --> Proposal[AutomationProposal]
-  Proposal --> Approval[ApprovalDecision]
-  Approval -->|approve| Exec[AutomationExecution]
-  Approval -->|reject| Log[AuditLog]
-  Exec --> TaskUpdate[Task Update]
-  Exec --> Suggest[AiSuggestion]
-  TaskUpdate --> Log
+  Intake[IntakeItem] --> Task[Task]
+  Task --> Suggest[AiSuggestion]
+  Task --> Prep[AiPrepOutput]
+  Suggest --> Apply[AI Apply]
+  Prep --> Approval[Approval/Apply]
+  Apply --> TaskUpdate[Task Update]
+  Approval --> TaskUpdate
+  TaskUpdate --> Log[AuditLog]
 ```
 
 ### Focus Queue Computation

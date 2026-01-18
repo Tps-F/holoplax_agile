@@ -8,9 +8,10 @@
 
 ### ナビゲーション方針
 - Plan First を前提に、初期到達は Plan 系画面に寄せる。
-- ダッシュボードは状況把握/レビューの補助に回す。
+- Home (/) は /backlog へリダイレクトする。
+- レビューは /review に集約する。
 
-### ダッシュボード (/)
+### レビュー (/review)
 - アクティブスプリント概要
   - Sprint: id, name, status, startedAt, plannedEndAt, capacityPoints
   - 集計: コミット点数、完了点数、完了率
@@ -28,11 +29,17 @@
   - WorkItem 最近5件 or AuditLog
 - ベロシティ
   - 直近N件の VelocityEntry
+  - 持続ベロシティ（平均/分散）
+  - PBI消化率/件数
 
 推奨クエリ:
 - Sprint: workspaceId で ACTIVE を取得
 - WorkItem: status/type/points の集計 + 最近5件
 - VelocityEntry: workspaceId の直近7件
+  - PBI: 最新スプリントの PBI 完了数/率
+
+### Home (/)
+- /backlog へ遷移
 
 ### バックログ (/backlog)
 - WorkItem を status で絞り込み（BACKLOG/SPRINT切替）
