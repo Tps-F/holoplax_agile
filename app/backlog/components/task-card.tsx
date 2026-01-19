@@ -9,7 +9,7 @@ import {
   type TaskDTO,
   type TaskType,
 } from "../../../lib/types";
-import { LoadingButton } from "../../components/loading-button";
+import { DropdownMenu } from "../../components/dropdown-menu";
 
 const taskTypeLabels: Record<TaskType, string> = {
   [TASK_TYPE.EPIC]: "目標",
@@ -195,28 +195,31 @@ export function TaskCard({
           </button>
         )}
 
-        <LoadingButton
-          className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-          onClick={() => onGetSuggestion(item.title, item.description, item.id)}
-          loading={suggestLoadingId === item.id}
-        >
-          AI 提案を見る
-        </LoadingButton>
-
-        <LoadingButton
-          className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-          onClick={() => onEstimateScore(item)}
-          loading={scoreLoadingId === item.id}
-        >
-          AIでスコア推定
-        </LoadingButton>
-
-        <button
-          className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-          onClick={() => onOpenPrepModal(item)}
-        >
-          AIで下準備
-        </button>
+        <DropdownMenu
+          label="AI提案"
+          items={[
+            {
+              label: "ヒントを見る",
+              onClick: () => onGetSuggestion(item.title, item.description, item.id),
+              loading: suggestLoadingId === item.id,
+            },
+            {
+              label: "スコア推定",
+              onClick: () => onEstimateScore(item),
+              loading: scoreLoadingId === item.id,
+            },
+            {
+              label: "分解提案",
+              onClick: () => onRequestSplit(item),
+              loading: splitLoadingId === item.id,
+              disabled: item.points <= splitThreshold,
+            },
+            {
+              label: "下準備",
+              onClick: () => onOpenPrepModal(item),
+            },
+          ]}
+        />
 
         <button
           className="border border-slate-200 bg-white p-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
@@ -233,16 +236,6 @@ export function TaskCard({
         >
           <Trash2 size={14} />
         </button>
-
-        {item.points > splitThreshold ? (
-          <LoadingButton
-            className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-            onClick={() => onRequestSplit(item)}
-            loading={splitLoadingId === item.id}
-          >
-            分解提案
-          </LoadingButton>
-        ) : null}
       </div>
 
       {/* AI Tip Suggestion */}
