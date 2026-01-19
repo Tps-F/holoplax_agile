@@ -2,193 +2,62 @@
 
 import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useWorkspaceId } from "../components/use-workspace-id";
-
-type MemoryTypeRow = {
-  id: string;
-  key: string;
-  scope: "USER" | "WORKSPACE";
-  valueType: string;
-  unit?: string | null;
-  granularity: string;
-  updatePolicy: string;
-  decayDays?: number | null;
-  description?: string | null;
-};
-
-type MemoryClaimRow = {
-  id: string;
-  typeId: string;
-  valueStr?: string | null;
-  valueNum?: number | null;
-  valueBool?: boolean | null;
-  valueJson?: unknown;
-  status: string;
-};
-
-type MemoryQuestionRow = {
-  id: string;
-  typeId: string;
-  valueStr?: string | null;
-  valueNum?: number | null;
-  valueBool?: boolean | null;
-  valueJson?: unknown;
-  confidence: number;
-  status: string;
-  createdAt: string;
-  type: {
-    key: string;
-    scope: "USER" | "WORKSPACE";
-    valueType: string;
-    description?: string | null;
-  };
-};
-
-const formatClaimValue = (type: MemoryTypeRow, claim?: MemoryClaimRow) => {
-  if (!claim) return "";
-  if (type.valueType === "STRING") return claim.valueStr ?? "";
-  if (
-    type.valueType === "NUMBER" ||
-    type.valueType === "DURATION_MS" ||
-    type.valueType === "RATIO"
-  ) {
-    return claim.valueNum !== null && claim.valueNum !== undefined ? String(claim.valueNum) : "";
-  }
-  if (type.valueType === "BOOL") {
-    return claim.valueBool === null || claim.valueBool === undefined
-      ? ""
-      : claim.valueBool
-        ? "true"
-        : "false";
-  }
-  if (
-    type.valueType === "JSON" ||
-    type.valueType === "HISTOGRAM_24x7" ||
-    type.valueType === "RATIO_BY_TYPE"
-  ) {
-    if (claim.valueJson === null || claim.valueJson === undefined) return "";
-    return JSON.stringify(claim.valueJson, null, 2);
-  }
-  return "";
-};
-
-const formatQuestionValue = (question: MemoryQuestionRow) => {
-  const type = question.type;
-  if (type.valueType === "STRING") return question.valueStr ?? "";
-  if (
-    type.valueType === "NUMBER" ||
-    type.valueType === "DURATION_MS" ||
-    type.valueType === "RATIO"
-  ) {
-    return question.valueNum !== null && question.valueNum !== undefined
-      ? String(question.valueNum)
-      : "";
-  }
-  if (type.valueType === "BOOL") {
-    if (question.valueBool === null || question.valueBool === undefined) return "";
-    return question.valueBool ? "true" : "false";
-  }
-  if (
-    type.valueType === "JSON" ||
-    type.valueType === "HISTOGRAM_24x7" ||
-    type.valueType === "RATIO_BY_TYPE"
-  ) {
-    if (question.valueJson === null || question.valueJson === undefined) return "";
-    return JSON.stringify(question.valueJson, null, 2);
-  }
-  return "";
-};
+import { useAccount } from "./hooks/use-account";
+import {
+  formatClaimValue,
+  type MemoryClaimRow,
+  type MemoryTypeRow,
+  useMemory,
+} from "./hooks/use-memory";
+import { formatQuestionValue, useMemoryQuestions } from "./hooks/use-memory-questions";
+import { useThresholds } from "./hooks/use-thresholds";
 
 export default function SettingsPage() {
   const { update } = useSession();
   const router = useRouter();
   const { workspaceId, ready } = useWorkspaceId();
-  const [low, setLow] = useState(35);
-  const [high, setHigh] = useState(70);
   const [notifications, setNotifications] = useState(false);
-  const [dirty, setDirty] = useState(false);
-  const [account, setAccount] = useState({ name: "", email: "", image: "" });
-  const [accountDirty, setAccountDirty] = useState(false);
-  const [memoryTypes, setMemoryTypes] = useState<MemoryTypeRow[]>([]);
-  const [memoryClaims, setMemoryClaims] = useState<Record<string, MemoryClaimRow>>({});
-  const [memoryDrafts, setMemoryDrafts] = useState<Record<string, string>>({});
-  const [memoryLoading, setMemoryLoading] = useState(false);
-  const [memorySavingId, setMemorySavingId] = useState<string | null>(null);
-  const [memoryRemovingId, setMemoryRemovingId] = useState<string | null>(null);
-  const [memoryQuestions, setMemoryQuestions] = useState<MemoryQuestionRow[]>([]);
-  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
-  const [memoryQuestionLoading, setMemoryQuestionLoading] = useState(false);
-  const [memoryQuestionActionId, setMemoryQuestionActionId] = useState<string | null>(null);
 
-  const fetchThresholds = useCallback(async () => {
-    if (!ready) return;
-    if (!workspaceId) {
-      setLow(35);
-      setHigh(70);
-      setDirty(false);
-      return;
-    }
-    const res = await fetch("/api/automation");
-    const data = await res.json();
-    setLow(data.low ?? 35);
-    setHigh(data.high ?? 70);
-    setDirty(false);
-  }, [ready, workspaceId]);
-
-  const fetchAccount = useCallback(async () => {
-    const res = await fetch("/api/account");
-    if (!res.ok) return;
-    const data = await res.json();
-    setAccount({
-      name: data.user?.name ?? "",
-      email: data.user?.email ?? "",
-      image: data.user?.image ?? "",
+  const { account, accountDirty, fetchAccount, updateAccountField, saveAccount, uploadAvatar } =
+    useAccount({
+      onSessionUpdate: async (user) => {
+        await update({ user });
+      },
+      onRouterRefresh: () => router.refresh(),
     });
-    setAccountDirty(false);
-  }, []);
 
-  const fetchMemory = useCallback(async () => {
-    if (!ready) return;
-    setMemoryLoading(true);
-    try {
-      const currentWorkspaceId = workspaceId;
-      void currentWorkspaceId;
-      const res = await fetch("/api/memory");
-      if (!res.ok) return;
-      const data = await res.json();
-      const types: MemoryTypeRow[] = data.types ?? [];
-      const claimMap: Record<string, MemoryClaimRow> = {};
-      (data.userClaims ?? []).forEach((claim: MemoryClaimRow) => {
-        claimMap[claim.typeId] = claim;
-      });
-      (data.workspaceClaims ?? []).forEach((claim: MemoryClaimRow) => {
-        claimMap[claim.typeId] = claim;
-      });
-      const drafts: Record<string, string> = {};
-      types.forEach((type) => {
-        drafts[type.id] = formatClaimValue(type, claimMap[type.id]);
-      });
-      setMemoryTypes(types);
-      setMemoryClaims(claimMap);
-      setMemoryDrafts(drafts);
-    } finally {
-      setMemoryLoading(false);
-    }
-  }, [ready, workspaceId]);
+  const { low, high, dirty, fetchThresholds, updateLow, updateHigh, saveThresholds } =
+    useThresholds({ ready, workspaceId });
 
-  const fetchMemoryQuestions = useCallback(async () => {
-    if (!ready) return;
-    setMemoryQuestionLoading(true);
-    try {
-      const res = await fetch("/api/memory/questions");
-      if (!res.ok) return;
-      const data = await res.json();
-      setMemoryQuestions(data.questions ?? []);
-    } finally {
-      setMemoryQuestionLoading(false);
-    }
-  }, [ready]);
+  const {
+    memoryClaims,
+    memoryDrafts,
+    memoryLoading,
+    memorySavingId,
+    memoryRemovingId,
+    editingMemoryId,
+    userMemoryTypes,
+    workspaceMemoryTypes,
+    fetchMemory,
+    handleMemoryDraftChange,
+    saveMemory,
+    removeMemory,
+    setEditingMemoryId,
+    cancelEdit,
+  } = useMemory({ ready, workspaceId });
+
+  const {
+    memoryQuestionLoading,
+    memoryQuestionActionId,
+    activeQuestion,
+    fetchMemoryQuestions,
+    respondMemoryQuestion,
+  } = useMemoryQuestions({
+    ready,
+    onAccept: () => void fetchMemory(),
+  });
 
   useEffect(() => {
     void fetchThresholds();
@@ -196,93 +65,6 @@ export default function SettingsPage() {
     void fetchMemory();
     void fetchMemoryQuestions();
   }, [fetchThresholds, fetchAccount, fetchMemory, fetchMemoryQuestions]);
-
-  const saveThresholds = async () => {
-    await fetch("/api/automation", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ low, high }),
-    });
-    setDirty(false);
-  };
-
-  const handleMemoryDraftChange = (typeId: string, value: string) => {
-    setMemoryDrafts((prev) => ({ ...prev, [typeId]: value }));
-  };
-
-  const saveMemory = async (type: MemoryTypeRow) => {
-    const value = memoryDrafts[type.id];
-    if (value === undefined || value === "") {
-      window.alert("値を入力してください。");
-      return;
-    }
-    setMemorySavingId(type.id);
-    try {
-      const res = await fetch("/api/memory", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ typeId: type.id, value }),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.claim) {
-        setMemoryClaims((prev) => ({ ...prev, [type.id]: data.claim }));
-        setMemoryDrafts((prev) => ({
-          ...prev,
-          [type.id]: formatClaimValue(type, data.claim),
-        }));
-      }
-    } finally {
-      setMemorySavingId(null);
-    }
-  };
-
-  const removeMemory = async (type: MemoryTypeRow) => {
-    const claim = memoryClaims[type.id];
-    if (!claim) return;
-    setMemoryRemovingId(claim.id);
-    try {
-      const res = await fetch("/api/memory", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ claimId: claim.id }),
-      });
-      if (!res.ok) return;
-      setMemoryClaims((prev) => {
-        const next = { ...prev };
-        delete next[type.id];
-        return next;
-      });
-      setMemoryDrafts((prev) => ({ ...prev, [type.id]: "" }));
-    } finally {
-      setMemoryRemovingId(null);
-    }
-  };
-
-  const respondMemoryQuestion = async (
-    question: MemoryQuestionRow,
-    action: "accept" | "reject" | "hold",
-  ) => {
-    setMemoryQuestionActionId(question.id);
-    try {
-      const res = await fetch(`/api/memory/questions/${question.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
-      });
-      if (!res.ok) return;
-      setMemoryQuestions((prev) => prev.filter((item) => item.id !== question.id));
-      if (action === "accept") {
-        void fetchMemory();
-      }
-    } finally {
-      setMemoryQuestionActionId(null);
-    }
-  };
-
-  const userMemoryTypes = memoryTypes.filter((type) => type.scope === "USER");
-  const workspaceMemoryTypes = memoryTypes.filter((type) => type.scope === "WORKSPACE");
-  const activeQuestion = memoryQuestions[0] ?? null;
 
   const renderMemoryInput = (type: MemoryTypeRow) => {
     const value = memoryDrafts[type.id] ?? "";
@@ -346,7 +128,6 @@ export default function SettingsPage() {
   }: {
     type: MemoryTypeRow;
     claim?: MemoryClaimRow;
-    value?: string;
     isEditing: boolean;
     onEdit: () => void;
     onCancel: () => void;
@@ -354,9 +135,7 @@ export default function SettingsPage() {
     onRemove: () => void;
     saving: boolean;
     removing?: boolean;
-    onDraftChange?: (value: string) => void;
     renderInput: () => ReactNode;
-    currentValue?: string;
   }) => (
     <div className="border border-slate-200 bg-slate-50 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
@@ -432,10 +211,7 @@ export default function SettingsPage() {
               名前
               <input
                 value={account.name}
-                onChange={(e) => {
-                  setAccount((p) => ({ ...p, name: e.target.value }));
-                  setAccountDirty(true);
-                }}
+                onChange={(e) => updateAccountField("name", e.target.value)}
                 className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 placeholder="名前"
               />
@@ -444,10 +220,7 @@ export default function SettingsPage() {
               メール
               <input
                 value={account.email}
-                onChange={(e) => {
-                  setAccount((p) => ({ ...p, email: e.target.value }));
-                  setAccountDirty(true);
-                }}
+                onChange={(e) => updateAccountField("email", e.target.value)}
                 className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 placeholder="you@example.com"
               />
@@ -468,23 +241,7 @@ export default function SettingsPage() {
                 onChange={async (e) => {
                   const file = e.target.files?.[0];
                   if (!file) return;
-                  const res = await fetch("/api/storage/avatar", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      filename: file.name,
-                      contentType: file.type || "image/png",
-                    }),
-                  });
-                  if (!res.ok) return;
-                  const data = await res.json();
-                  await fetch(data.uploadUrl, {
-                    method: "PUT",
-                    headers: { "Content-Type": file.type || "image/png" },
-                    body: file,
-                  });
-                  setAccount((p) => ({ ...p, image: data.publicUrl }));
-                  setAccountDirty(true);
+                  await uploadAvatar(file);
                 }}
                 className="mt-2 block text-xs text-slate-600 file:mr-3 file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-xs file:font-semibold file:text-slate-700"
               />
@@ -492,24 +249,7 @@ export default function SettingsPage() {
           </div>
           <div className="mt-3 flex items-center gap-2">
             <button
-              onClick={async () => {
-                const res = await fetch("/api/account", {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(account),
-                });
-                if (res.ok) {
-                  await update({
-                    user: {
-                      name: account.name || null,
-                      email: account.email || null,
-                      image: account.image || null,
-                    },
-                  });
-                  router.refresh();
-                }
-                setAccountDirty(false);
-              }}
+              onClick={saveAccount}
               disabled={!accountDirty}
               className="border border-slate-200 bg-slate-50 px-4 py-2 text-sm text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb] disabled:opacity-50"
             >
@@ -533,19 +273,13 @@ export default function SettingsPage() {
             <input
               type="number"
               value={low}
-              onChange={(e) => {
-                setLow(Number(e.target.value) || 0);
-                setDirty(true);
-              }}
+              onChange={(e) => updateLow(Number(e.target.value) || 0)}
               className="w-20 border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-[#2323eb]"
             />
             <input
               type="number"
               value={high}
-              onChange={(e) => {
-                setHigh(Number(e.target.value) || 0);
-                setDirty(true);
-              }}
+              onChange={(e) => updateHigh(Number(e.target.value) || 0)}
               className="w-20 border border-slate-200 px-3 py-2 text-slate-800 outline-none focus:border-[#2323eb]"
             />
             <button
@@ -581,23 +315,14 @@ export default function SettingsPage() {
                     key={type.id}
                     type={type}
                     claim={memoryClaims[type.id]}
-                    value={memoryDrafts[type.id]}
                     isEditing={editingMemoryId === type.id}
                     onEdit={() => setEditingMemoryId(type.id)}
-                    onCancel={() => {
-                      setEditingMemoryId(null);
-                      setMemoryDrafts((prev) => ({
-                        ...prev,
-                        [type.id]: formatClaimValue(type, memoryClaims[type.id]),
-                      }));
-                    }}
+                    onCancel={() => cancelEdit(type.id)}
                     onSave={() => saveMemory(type).then(() => setEditingMemoryId(null))}
                     onRemove={() => removeMemory(type)}
                     saving={memorySavingId === type.id}
                     removing={memoryRemovingId === memoryClaims[type.id]?.id}
-                    onDraftChange={(value) => handleMemoryDraftChange(type.id, value)}
                     renderInput={() => renderMemoryInput(type)}
-                    currentValue={formatClaimValue(type, memoryClaims[type.id])}
                   />
                 ))
               ) : (
@@ -615,23 +340,14 @@ export default function SettingsPage() {
                       key={type.id}
                       type={type}
                       claim={memoryClaims[type.id]}
-                      value={memoryDrafts[type.id]}
                       isEditing={editingMemoryId === type.id}
                       onEdit={() => setEditingMemoryId(type.id)}
-                      onCancel={() => {
-                        setEditingMemoryId(null);
-                        setMemoryDrafts((prev) => ({
-                          ...prev,
-                          [type.id]: formatClaimValue(type, memoryClaims[type.id]),
-                        }));
-                      }}
+                      onCancel={() => cancelEdit(type.id)}
                       onSave={() => saveMemory(type).then(() => setEditingMemoryId(null))}
                       onRemove={() => removeMemory(type)}
                       saving={memorySavingId === type.id}
                       removing={memoryRemovingId === memoryClaims[type.id]?.id}
-                      onDraftChange={(value) => handleMemoryDraftChange(type.id, value)}
                       renderInput={() => renderMemoryInput(type)}
-                      currentValue={formatClaimValue(type, memoryClaims[type.id])}
                     />
                   ))
                 ) : (

@@ -1,6 +1,5 @@
 "use client";
 
-import { BarChart2, Lightbulb, Pencil, Scissors, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -14,9 +13,10 @@ import {
   type TaskStatus,
   type TaskType,
 } from "../../lib/types";
-import { DropdownMenu } from "../components/dropdown-menu";
 import { LoadingButton } from "../components/loading-button";
+import { type AiSuggestionConfig, TaskCard } from "../components/task-card";
 import { useWorkspaceId } from "../components/use-workspace-id";
+import { useAiSuggestions } from "./hooks/use-ai-suggestions";
 import { useProactiveSuggestionsList } from "./hooks/use-proactive-suggestions";
 import { useSuggestionContext } from "./hooks/use-suggestion-context";
 
@@ -53,13 +53,6 @@ const checklistFromText = (text: string) =>
 const checklistToText = (checklist?: { id: string; text: string; done: boolean }[] | null) =>
   (checklist ?? []).map((item) => item.text).join("\n");
 const severityOptions: Severity[] = [SEVERITY.LOW, SEVERITY.MEDIUM, SEVERITY.HIGH];
-type SplitSuggestion = {
-  title: string;
-  points: number;
-  urgency: string;
-  risk: string;
-  detail: string;
-};
 
 type AiPrepType = "EMAIL" | "IMPLEMENTATION" | "CHECKLIST";
 
@@ -118,6 +111,51 @@ export default function BacklogPage() {
   const { context: aiContext } = useSuggestionContext();
   const proactiveSuggestionsMap = useProactiveSuggestionsList(items, aiContext);
   const [view, setView] = useState<"product" | "sprint">("product");
+
+  // Fetch functions need to be defined before useAiSuggestions
+  const fetchTasksByStatus = useCallback(async (statuses: TaskStatus[]) => {
+    const params = statuses.map((status) => `status=${encodeURIComponent(status)}`).join("&");
+    const res = await fetch(`/api/tasks?${params}&limit=200`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.tasks ?? [];
+  }, []);
+
+  const fetchTasks = useCallback(async () => {
+    if (!ready) return;
+    if (!workspaceId) {
+      setItems([]);
+      return;
+    }
+    const [backlogTasks, sprintTasks] = await Promise.all([
+      fetchTasksByStatus([TASK_STATUS.BACKLOG]),
+      fetchTasksByStatus([TASK_STATUS.SPRINT]),
+    ]);
+    const mergedMap = new Map<string, TaskDTO>();
+    [...backlogTasks, ...sprintTasks].forEach((task) => {
+      mergedMap.set(task.id, task);
+    });
+    setItems(Array.from(mergedMap.values()));
+  }, [ready, workspaceId, fetchTasksByStatus]);
+
+  // AI Suggestions hook
+  const {
+    suggestionMap,
+    scoreMap,
+    splitMap,
+    suggestLoadingId,
+    scoreLoadingId,
+    splitLoadingId,
+    getSuggestion,
+    estimateScoreForTask,
+    applyTipSuggestion,
+    applyScoreSuggestion,
+    dismissTip,
+    dismissScore,
+    requestSplit,
+    applySplit,
+    rejectSplit,
+  } = useAiSuggestions({ fetchTasks, setItems, context: aiContext });
   const createDefaultForm = () => ({
     title: "",
     description: "",
@@ -138,26 +176,7 @@ export default function BacklogPage() {
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
-  const [suggestionMap, setSuggestionMap] = useState<
-    Record<string, { text: string; suggestionId?: string | null }>
-  >({});
   const [scoreHint, setScoreHint] = useState<string | null>(null);
-  const [scoreMap, setScoreMap] = useState<
-    Record<
-      string,
-      {
-        points: number;
-        urgency: string;
-        risk: string;
-        reason?: string;
-        suggestionId?: string | null;
-      }
-    >
-  >({});
-  const [splitMap, setSplitMap] = useState<Record<string, SplitSuggestion[]>>({});
-  const [splitSuggestionIdMap, setSplitSuggestionIdMap] = useState<Record<string, string | null>>(
-    {},
-  );
   const [editItem, setEditItem] = useState<TaskDTO | null>(null);
   const [editForm, setEditForm] = useState({
     title: "",
@@ -176,9 +195,6 @@ export default function BacklogPage() {
     dependencyIds: [] as string[],
   });
   const [addLoading, setAddLoading] = useState(false);
-  const [suggestLoadingId, setSuggestLoadingId] = useState<string | null>(null);
-  const [splitLoadingId, setSplitLoadingId] = useState<string | null>(null);
-  const [scoreLoadingId, setScoreLoadingId] = useState<string | null>(null);
   const [approvalLoadingId, setApprovalLoadingId] = useState<string | null>(null);
   const [prepModalOpen, setPrepModalOpen] = useState(false);
   const [prepTask, setPrepTask] = useState<TaskDTO | null>(null);
@@ -273,31 +289,6 @@ export default function BacklogPage() {
     }
   };
 
-  const fetchTasksByStatus = useCallback(async (statuses: TaskStatus[]) => {
-    const params = statuses.map((status) => `status=${encodeURIComponent(status)}`).join("&");
-    const res = await fetch(`/api/tasks?${params}&limit=200`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data.tasks ?? [];
-  }, []);
-
-  const fetchTasks = useCallback(async () => {
-    if (!ready) return;
-    if (!workspaceId) {
-      setItems([]);
-      return;
-    }
-    const [backlogTasks, sprintTasks] = await Promise.all([
-      fetchTasksByStatus([TASK_STATUS.BACKLOG]),
-      fetchTasksByStatus([TASK_STATUS.SPRINT]),
-    ]);
-    const mergedMap = new Map<string, TaskDTO>();
-    [...backlogTasks, ...sprintTasks].forEach((task) => {
-      mergedMap.set(task.id, task);
-    });
-    setItems(Array.from(mergedMap.values()));
-  }, [ready, workspaceId, fetchTasksByStatus]);
-
   const fetchMembers = useCallback(async () => {
     if (!ready || !workspaceId) {
       setMembers([]);
@@ -347,7 +338,9 @@ export default function BacklogPage() {
 
   const taskById = useMemo(() => {
     const map = new Map<string, TaskDTO>();
-    items.forEach((item) => map.set(item.id, item));
+    for (const item of items) {
+      map.set(item.id, item);
+    }
     return map;
   }, [items]);
 
@@ -484,217 +477,6 @@ export default function BacklogPage() {
       return;
     }
     void fetchTasks();
-  };
-
-  const getSuggestion = async (title: string, description?: string, taskId?: string) => {
-    setSuggestLoadingId(taskId ?? title);
-    try {
-      if (taskId) {
-        const cached = await fetch(`/api/ai/suggest?taskId=${encodeURIComponent(taskId)}`);
-        if (cached.ok) {
-          const data = await cached.json();
-          if (data.suggestion !== null && data.suggestion !== undefined) {
-            setSuggestionMap((prev) => ({
-              ...prev,
-              [taskId]: { text: data.suggestion, suggestionId: data.suggestionId },
-            }));
-            return;
-          }
-        }
-      }
-      const res = await fetch("/api/ai/suggest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, taskId }),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      if (taskId) {
-        setSuggestionMap((prev) => ({
-          ...prev,
-          [taskId]: { text: data.suggestion, suggestionId: data.suggestionId },
-        }));
-      } else {
-        setSuggestion(data.suggestion);
-      }
-    } finally {
-      setSuggestLoadingId(null);
-    }
-  };
-
-  const estimateScoreForTask = async (item: TaskDTO) => {
-    setScoreLoadingId(item.id);
-    try {
-      const res = await fetch("/api/ai/score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: item.title,
-          description: item.description ?? "",
-          taskId: item.id,
-        }),
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      setScoreMap((prev) => ({
-        ...prev,
-        [item.id]: {
-          points: Number(data.points) || item.points,
-          urgency: data.urgency ?? item.urgency,
-          risk: data.risk ?? item.risk,
-          reason: data.reason,
-          suggestionId: data.suggestionId,
-        },
-      }));
-    } finally {
-      setScoreLoadingId(null);
-    }
-  };
-
-  const applyTipSuggestion = async (itemId: string) => {
-    const suggestion = suggestionMap[itemId];
-    if (!suggestion) return;
-    await fetch("/api/ai/apply", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        taskId: itemId,
-        type: "TIP",
-        suggestionId: suggestion.suggestionId,
-        payload: { text: suggestion.text },
-      }),
-    });
-    void fetchTasks();
-  };
-
-  const dismissTip = (itemId: string) => {
-    setSuggestionMap((prev) => {
-      const next = { ...prev };
-      delete next[itemId];
-      return next;
-    });
-  };
-
-  const dismissScore = (itemId: string) => {
-    setScoreMap((prev) => {
-      const next = { ...prev };
-      delete next[itemId];
-      return next;
-    });
-  };
-
-  const applyScoreSuggestion = async (itemId: string) => {
-    const score = scoreMap[itemId];
-    if (!score) return;
-    await fetch("/api/ai/apply", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        taskId: itemId,
-        type: "SCORE",
-        suggestionId: score.suggestionId,
-        payload: {
-          points: score.points,
-          urgency: score.urgency,
-          risk: score.risk,
-        },
-      }),
-    });
-    void fetchTasks();
-  };
-
-  const requestSplit = async (item: TaskDTO) => {
-    setSplitLoadingId(item.id);
-    try {
-      const res = await fetch("/api/ai/split", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: item.title,
-          description: item.description ?? "",
-          points: item.points,
-          taskId: item.id,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSplitMap((prev) => ({ ...prev, [item.id]: data.suggestions ?? [] }));
-        setSplitSuggestionIdMap((prev) => ({
-          ...prev,
-          [item.id]: data.suggestionId ?? null,
-        }));
-      }
-    } finally {
-      setSplitLoadingId(null);
-    }
-  };
-
-  const applySplit = async (item: TaskDTO) => {
-    const suggestions = splitMap[item.id] ?? [];
-    if (!suggestions.length) return;
-    // Optimistic update
-    setItems((prev) =>
-      prev.map((t) =>
-        t.id === item.id ? { ...t, automationState: AUTOMATION_STATE.SPLIT_PARENT } : t,
-      ),
-    );
-    setSplitMap((prev) => {
-      const next = { ...prev };
-      delete next[item.id];
-      return next;
-    });
-    setSplitSuggestionIdMap((prev) => {
-      const next = { ...prev };
-      delete next[item.id];
-      return next;
-    });
-    const statusValue = view === "sprint" ? TASK_STATUS.SPRINT : TASK_STATUS.BACKLOG;
-    await Promise.all(
-      suggestions.map((split) =>
-        fetch("/api/tasks", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: split.title,
-            description: split.detail,
-            points: split.points,
-            urgency: split.urgency ?? SEVERITY.MEDIUM,
-            risk: split.risk ?? SEVERITY.MEDIUM,
-            status: statusValue,
-            type: TASK_TYPE.TASK,
-            parentId: item.id,
-          }),
-        }),
-      ),
-    );
-    await fetch(`/api/tasks/${item.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ automationState: AUTOMATION_STATE.SPLIT_PARENT }),
-    });
-    await fetch("/api/ai/apply", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        taskId: item.id,
-        type: "SPLIT",
-        suggestionId: splitSuggestionIdMap[item.id] ?? null,
-      }),
-    });
-    await fetchTasks();
-  };
-
-  const dismissSplit = (itemId: string) => {
-    setSplitMap((prev) => {
-      const next = { ...prev };
-      delete next[itemId];
-      return next;
-    });
-    setSplitSuggestionIdMap((prev) => {
-      const next = { ...prev };
-      delete next[itemId];
-      return next;
-    });
   };
 
   const toggleChecklistItem = async (taskId: string, checklistId: string) => {
@@ -1047,300 +829,53 @@ export default function BacklogPage() {
                   <span className="text-xs text-slate-500">{bucket.length} 件</span>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  {bucket.map((item) => (
-                    <div
-                      key={item.id}
-                      className="border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold text-slate-900">{item.title}</p>
-                          {proactiveSuggestionsMap.get(item.id) && (
-                            <span
-                              className="flex items-center gap-1 text-[10px] text-blue-600 opacity-70"
-                              title={proactiveSuggestionsMap.get(item.id)?.reason}
-                            >
-                              {proactiveSuggestionsMap.get(item.id)?.type === "TIP" && (
-                                <>
-                                  <Lightbulb size={10} />
-                                  ヒント提案あり
-                                </>
-                              )}
-                              {proactiveSuggestionsMap.get(item.id)?.type === "SCORE" && (
-                                <>
-                                  <BarChart2 size={10} />
-                                  見積もり提案あり
-                                </>
-                              )}
-                              {proactiveSuggestionsMap.get(item.id)?.type === "SPLIT" && (
-                                <>
-                                  <Scissors size={10} />
-                                  分解提案あり
-                                </>
-                              )}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs">
-                          <span className="border border-slate-200 bg-white px-2 py-1 text-slate-600">
-                            {taskTypeLabels[(item.type ?? TASK_TYPE.PBI) as TaskType]}
-                          </span>
-                          <span className="border border-slate-200 bg-white px-2 py-1 text-slate-700">
-                            {item.points} pt
-                          </span>
-                          <span className="border border-slate-200 bg-white px-2 py-1 text-slate-700">
-                            緊急度: {SEVERITY_LABELS[item.urgency as Severity] ?? item.urgency}
-                          </span>
-                          <span className="border border-slate-200 bg-white px-2 py-1 text-slate-700">
-                            リスク: {SEVERITY_LABELS[item.risk as Severity] ?? item.risk}
-                          </span>
-                          {item.automationState === AUTOMATION_STATE.PENDING_SPLIT ? (
-                            <span className="border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700">
-                              承認待ち
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                      {item.description ? (
-                        <p className="mt-1 text-sm text-slate-700">{item.description}</p>
-                      ) : null}
-                      {item.definitionOfDone ? (
-                        <p className="mt-1 text-xs text-slate-500">
-                          完了条件: {item.definitionOfDone}
-                        </p>
-                      ) : null}
-                      {item.checklist && item.checklist.length > 0 ? (
-                        <div className="mt-2 grid gap-1 text-xs text-slate-600">
-                          {item.checklist.map((check) => (
-                            <label key={check.id} className="flex items-center gap-2">
-                              <input
-                                type="checkbox"
-                                checked={check.done}
-                                onChange={() => toggleChecklistItem(item.id, check.id)}
-                                className="accent-[#2323eb]"
-                              />
-                              <span
-                                className={
-                                  check.done ? "line-through text-slate-400" : "text-slate-600"
-                                }
-                              >
-                                {check.text}
-                              </span>
-                            </label>
-                          ))}
-                        </div>
-                      ) : null}
-                      <div className="mt-2 flex items-center gap-2 text-xs">
-                        {view === "product" ? (
-                          <button
-                            className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                            onClick={() => {
-                              if (isBlocked(item)) {
-                                window.alert("依存タスクが未完了のため移動できません。");
-                                return;
-                              }
-                              moveToSprint(item.id);
-                            }}
-                          >
-                            スプリントに送る
-                          </button>
-                        ) : (
-                          <button
-                            className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                            onClick={() => moveToBacklog(item.id)}
-                          >
-                            目標リストに戻す
-                          </button>
-                        )}
-                        <DropdownMenu
-                          label="AI提案"
-                          items={[
-                            {
-                              label: "ヒントを見る",
-                              onClick: () => getSuggestion(item.title, item.description, item.id),
-                              loading: suggestLoadingId === item.id,
-                            },
-                            {
-                              label: "スコア推定",
-                              onClick: () => estimateScoreForTask(item),
-                              loading: scoreLoadingId === item.id,
-                            },
-                            {
-                              label: "分解提案",
-                              onClick: () => requestSplit(item),
-                              loading: splitLoadingId === item.id,
-                              disabled: item.points <= splitThreshold,
-                            },
-                            {
-                              label: "下準備",
-                              onClick: () => openPrepModal(item),
-                            },
-                          ]}
-                        />
-                        <button
-                          className="border border-slate-200 bg-white p-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                          onClick={() => openEdit(item)}
-                          aria-label="編集"
-                        >
-                          <Pencil size={14} />
-                        </button>
-                        <button
-                          className="border border-slate-200 bg-white p-1 text-slate-700 transition hover:border-red-300 hover:text-red-600"
-                          onClick={() => deleteItem(item.id)}
-                          aria-label="削除"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      {suggestionMap[item.id] ? (
-                        <div className="mt-2 border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
-                          <p>{suggestionMap[item.id].text}</p>
-                          <div className="mt-2 flex items-center gap-2">
-                            <button
-                              onClick={() => applyTipSuggestion(item.id)}
-                              className="border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 transition hover:border-emerald-300"
-                            >
-                              適用
-                            </button>
-                            <button
-                              onClick={() => dismissTip(item.id)}
-                              className="border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500 transition hover:border-slate-300"
-                            >
-                              閉じる
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-                      {scoreMap[item.id] ? (
-                        <div className="mt-2 border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-                            Score suggestion
-                          </p>
-                          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-600">
-                            <span className="border border-slate-200 bg-slate-50 px-2 py-1">
-                              {scoreMap[item.id].points} pt
-                            </span>
-                            <span className="border border-slate-200 bg-slate-50 px-2 py-1">
-                              緊急度:{" "}
-                              {SEVERITY_LABELS[scoreMap[item.id].urgency as Severity] ??
-                                scoreMap[item.id].urgency}
-                            </span>
-                            <span className="border border-slate-200 bg-slate-50 px-2 py-1">
-                              リスク:{" "}
-                              {SEVERITY_LABELS[scoreMap[item.id].risk as Severity] ??
-                                scoreMap[item.id].risk}
-                            </span>
-                          </div>
-                          {scoreMap[item.id].reason ? (
-                            <p className="mt-2 text-[11px] text-slate-500">
-                              {scoreMap[item.id].reason}
-                            </p>
-                          ) : null}
-                          <div className="mt-2 flex items-center gap-2">
-                            <button
-                              onClick={() => applyScoreSuggestion(item.id)}
-                              className="border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 transition hover:border-emerald-300"
-                            >
-                              適用
-                            </button>
-                            <button
-                              onClick={() => dismissScore(item.id)}
-                              className="border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500 transition hover:border-slate-300"
-                            >
-                              閉じる
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-slate-500">
-                        {item.parentId ? (
-                          <span className="border border-slate-200 bg-white px-2 py-1">
-                            親: {taskById.get(item.parentId)?.title ?? "未設定"}
-                          </span>
-                        ) : null}
-                        {childCount.get(item.id) ? (
-                          <span className="border border-slate-200 bg-white px-2 py-1">
-                            子: {childCount.get(item.id)} 件
-                          </span>
-                        ) : null}
-                        {item.dueDate ? (
-                          <span className="border border-slate-200 bg-white px-2 py-1">
-                            期限: {new Date(item.dueDate).toLocaleDateString()}
-                          </span>
-                        ) : null}
-                        {item.assigneeId ? (
-                          <span className="border border-slate-200 bg-white px-2 py-1">
-                            担当:{" "}
-                            {members.find((member) => member.id === item.assigneeId)?.name ??
-                              "未設定"}
-                          </span>
-                        ) : null}
-                        {item.tags && item.tags.length > 0 ? (
-                          <span className="border border-slate-200 bg-white px-2 py-1">
-                            #{item.tags.join(" #")}
-                          </span>
-                        ) : null}
-                        {item.type === TASK_TYPE.ROUTINE && item.routineCadence ? (
-                          <span className="border border-slate-200 bg-white px-2 py-1">
-                            ルーティン: {item.routineCadence === "DAILY" ? "毎日" : "毎週"}
-                          </span>
-                        ) : null}
-                        {item.dependencies && item.dependencies.length > 0 ? (
-                          <span
-                            className={`border px-2 py-1 ${
-                              isBlocked(item)
-                                ? "border-amber-200 bg-amber-50 text-amber-700"
-                                : "border-slate-200 bg-white"
-                            }`}
-                          >
-                            依存:{" "}
-                            {item.dependencies
-                              .map((dep) =>
-                                dep.status === TASK_STATUS.DONE ? dep.title : `${dep.title}*`,
-                              )
-                              .join(", ")}
-                          </span>
-                        ) : null}
-                      </div>
-                      {splitMap[item.id]?.length ? (
-                        <div className="mt-3 border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
-                          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-                            Split suggestions
-                          </p>
-                          <div className="mt-2 grid gap-2">
-                            {splitMap[item.id].map((split, idx) => (
-                              <div
-                                key={`${item.id}-${idx}`}
-                                className="flex items-start justify-between gap-3"
-                              >
-                                <div>
-                                  <p className="font-semibold text-slate-900">{split.title}</p>
-                                  <p className="text-[11px] text-slate-600">{split.detail}</p>
-                                </div>
-                                <span className="border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] text-slate-700">
-                                  {split.points} pt
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="mt-2 flex items-center gap-2">
-                            <button
-                              onClick={() => applySplit(item)}
-                              className="border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
-                            >
-                              この分解をバックログに追加
-                            </button>
-                            <button
-                              onClick={() => dismissSplit(item.id)}
-                              className="border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500 transition hover:border-slate-300"
-                            >
-                              閉じる
-                            </button>
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
+                  {bucket.map((item) => {
+                    const aiConfig: AiSuggestionConfig = {
+                      splitThreshold,
+                      suggestLoadingId,
+                      scoreLoadingId,
+                      splitLoadingId,
+                      suggestion: suggestionMap[item.id]
+                        ? { text: suggestionMap[item.id].text }
+                        : undefined,
+                      score: scoreMap[item.id],
+                      splits: splitMap[item.id],
+                      proactiveSuggestion: proactiveSuggestionsMap.get(item.id),
+                      onGetSuggestion: () => getSuggestion(item.title, item.description, item.id),
+                      onEstimateScore: () => estimateScoreForTask(item),
+                      onRequestSplit: () => requestSplit(item),
+                      onApplySplit: () => applySplit(item, view),
+                      onApplyTipSuggestion: () => applyTipSuggestion(item.id),
+                      onApplyScoreSuggestion: () => applyScoreSuggestion(item.id),
+                      onDismissTip: () => dismissTip(item.id),
+                      onDismissScore: () => dismissScore(item.id),
+                      onDismissSplit: () => rejectSplit(item.id),
+                      onOpenPrepModal: () => openPrepModal(item),
+                    };
+                    return (
+                      <TaskCard
+                        key={item.id}
+                        item={item}
+                        variant="backlog"
+                        parentTask={item.parentId ? taskById.get(item.parentId) : undefined}
+                        childCount={childCount.get(item.id) ?? 0}
+                        members={members.map((m) => ({ id: m.id, name: m.name }))}
+                        isBlocked={isBlocked(item)}
+                        aiConfig={aiConfig}
+                        onMoveToSprint={
+                          view === "product" ? () => moveToSprint(item.id) : undefined
+                        }
+                        onMoveToBacklog={
+                          view === "sprint" ? () => moveToBacklog(item.id) : undefined
+                        }
+                        onDelete={() => deleteItem(item.id)}
+                        onEdit={() => openEdit(item)}
+                        onToggleChecklistItem={(checklistId) =>
+                          toggleChecklistItem(item.id, checklistId)
+                        }
+                      />
+                    );
+                  })}
                 </div>
               </div>
             );
