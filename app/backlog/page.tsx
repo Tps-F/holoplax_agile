@@ -745,7 +745,8 @@ export default function BacklogPage() {
             </p>
             <h1 className="text-3xl font-semibold text-slate-900">バックログ</h1>
             <p className="text-sm text-slate-600">
-              手入力＋後でインポートを追加。点数と緊急度/リスクをセットしてスプリントに送れるように。
+              ポイント/緊急度/リスクを入力し目標/PBI/タスク/ルーティーンを作成<br />
+              実行タスクはスプリントへ送信
             </p>
           </div>
           <div className="flex items-center gap-2 whitespace-nowrap">
@@ -799,7 +800,7 @@ export default function BacklogPage() {
       ).length ? (
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">AI委任キュー</h2>
+            <h2 className="text-lg font-semibold text-slate-900">AI委任提案</h2>
             <span className="text-xs text-slate-500">
               {
                 items.filter(
@@ -851,7 +852,7 @@ export default function BacklogPage() {
       {items.filter((item) => item.tags?.includes(PENDING_APPROVAL_TAG)).length ? (
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">自動分解 承認待ち</h2>
+            <h2 className="text-lg font-semibold text-slate-900">承認待ちの自動分解提案</h2>
             <span className="text-xs text-slate-500">
               {items.filter((item) => item.tags?.includes(PENDING_APPROVAL_TAG)).length} 件
             </span>
@@ -988,7 +989,7 @@ export default function BacklogPage() {
                               moveToSprint(item.id);
                             }}
                           >
-                            スプリントに送る
+                            スプリントへ送る
                           </button>
                         ) : (
                           <button
@@ -1003,14 +1004,14 @@ export default function BacklogPage() {
                           onClick={() => getSuggestion(item.title, item.description, item.id)}
                           loading={suggestLoadingId === item.id}
                         >
-                          AI 提案を見る
+                          AI提案を見る
                         </LoadingButton>
                         <LoadingButton
                           className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
                           onClick={() => estimateScoreForTask(item)}
                           loading={scoreLoadingId === item.id}
                         >
-                          AIでスコア推定
+                          AIスコア推定
                         </LoadingButton>
                         <button
                           className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
@@ -1180,7 +1181,7 @@ export default function BacklogPage() {
       {items.filter((item) => item.tags?.includes(SPLIT_PARENT_TAG)).length ? (
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">自動分解済み (元タスク)</h2>
+            <h2 className="text-lg font-semibold text-slate-900">自動分解済タスク</h2>
             <span className="text-xs text-slate-500">
               {
                 items.filter(

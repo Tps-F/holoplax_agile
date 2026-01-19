@@ -452,9 +452,9 @@ export default function SettingsPage() {
         </div>
 
         <div className="border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">AI しきい値</h3>
+          <h3 className="text-lg font-semibold text-slate-900">AI閾値</h3>
           <p className="text-sm text-slate-600">
-            低・中・高の分岐ポイントを設定（現在: {low} / {high}）。
+            自動委任/分割提案/自動分割の閾値を設定（現在: {low} / {high}）
           </p>
           <div className="mt-3 flex items-center gap-2 text-sm">
             <input
@@ -490,7 +490,7 @@ export default function SettingsPage() {
             <div>
               <h3 className="text-lg font-semibold text-slate-900">Memory</h3>
               <p className="text-sm text-slate-600">
-                ユーザー/ワークスペースの前提情報を管理します。
+                ユーザー/ワークスペースの前提情報を管理
               </p>
             </div>
             {memoryLoading || memoryQuestionLoading ? (
