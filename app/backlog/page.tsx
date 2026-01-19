@@ -332,62 +332,52 @@ export default function BacklogPage() {
   };
 
   useEffect(() => {
-    void fetchTasks();
-    void fetchMembers();
+    void Promise.all([fetchTasks(), fetchMembers()]);
   }, [fetchTasks, fetchMembers]);
 
-  const taskById = useMemo(() => {
-    const map = new Map<string, TaskDTO>();
-    for (const item of items) {
-      map.set(item.id, item);
-    }
-    return map;
-  }, [items]);
-
-  const childCount = useMemo(() => {
-    const map = new Map<string, number>();
-    items.forEach((item) => {
-      if (!item.parentId) return;
-      map.set(item.parentId, (map.get(item.parentId) ?? 0) + 1);
-    });
-    return map;
-  }, [items]);
-
-  const visibleItems = useMemo(
-    () =>
-      items
-        .filter((item) =>
-          view === "product"
-            ? item.status === TASK_STATUS.BACKLOG
-            : item.status === TASK_STATUS.SPRINT,
-        )
-        .filter((item) => item.automationState !== AUTOMATION_STATE.DELEGATED)
-        .filter((item) => item.automationState !== AUTOMATION_STATE.SPLIT_PARENT),
-    [items, view],
-  );
-
-  const groupedByType = useMemo(() => {
-    const grouped: Record<TaskType, TaskDTO[]> = {
+  // Single pass to compute taskById, childCount, visibleItems, groupedByType, parentCandidates
+  const { taskById, childCount, visibleItems, groupedByType, parentCandidates } = useMemo(() => {
+    const taskById = new Map<string, TaskDTO>();
+    const childCount = new Map<string, number>();
+    const visibleItems: TaskDTO[] = [];
+    const groupedByType: Record<TaskType, TaskDTO[]> = {
       [TASK_TYPE.EPIC]: [],
       [TASK_TYPE.PBI]: [],
       [TASK_TYPE.TASK]: [],
       [TASK_TYPE.ROUTINE]: [],
     };
-    visibleItems.forEach((item) => {
-      const type = (item.type ?? TASK_TYPE.PBI) as TaskType;
-      grouped[type].push(item);
-    });
-    return grouped;
-  }, [visibleItems]);
+    const parentCandidates: TaskDTO[] = [];
 
-  const parentCandidates = useMemo(
-    () =>
-      items.filter((item) => {
-        const type = (item.type ?? TASK_TYPE.PBI) as TaskType;
-        return type === TASK_TYPE.EPIC || type === TASK_TYPE.PBI;
-      }),
-    [items],
-  );
+    const targetStatus = view === "product" ? TASK_STATUS.BACKLOG : TASK_STATUS.SPRINT;
+
+    for (const item of items) {
+      // taskById
+      taskById.set(item.id, item);
+
+      // childCount
+      if (item.parentId) {
+        childCount.set(item.parentId, (childCount.get(item.parentId) ?? 0) + 1);
+      }
+
+      // parentCandidates
+      const type = (item.type ?? TASK_TYPE.PBI) as TaskType;
+      if (type === TASK_TYPE.EPIC || type === TASK_TYPE.PBI) {
+        parentCandidates.push(item);
+      }
+
+      // visibleItems + groupedByType
+      if (
+        item.status === targetStatus &&
+        item.automationState !== AUTOMATION_STATE.DELEGATED &&
+        item.automationState !== AUTOMATION_STATE.SPLIT_PARENT
+      ) {
+        visibleItems.push(item);
+        groupedByType[type].push(item);
+      }
+    }
+
+    return { taskById, childCount, visibleItems, groupedByType, parentCandidates };
+  }, [items, view]);
 
   const isBlocked = (item: TaskDTO) =>
     (item.dependencies ?? []).some((dep) => dep.status !== TASK_STATUS.DONE);

@@ -36,6 +36,7 @@ export default async function ReviewPage() {
         prisma.task.findMany({
           where: { workspaceId },
           orderBy: { createdAt: "desc" },
+          take: 1000,
         }),
         prisma.velocityEntry.findMany({
           where: { workspaceId },
@@ -51,21 +52,72 @@ export default async function ReviewPage() {
       ])
     : [null, [], [], 0];
 
-  const sprintTasks = sprint
-    ? tasks.filter((task) => task.sprintId === sprint.id || task.status === "SPRINT")
-    : tasks.filter((task) => task.status === "SPRINT");
-  const sprintDone = sprintTasks.filter((task) => task.status === "DONE");
-  const sprintActive = sprintTasks.filter((task) => task.status !== "DONE");
-  const sprintPbis = sprintTasks.filter((task) => task.type === "PBI");
-  const sprintPbiDone = sprintPbis.filter((task) => task.status === "DONE");
-  const pbiCompletionRate = sprintPbis.length
-    ? (sprintPbiDone.length / sprintPbis.length) * 100
-    : 0;
-  const committedPoints = sprintActive.reduce((sum, task) => sum + task.points, 0);
-  const totalSprintPoints = sprintTasks.reduce((sum, task) => sum + task.points, 0);
-  const completionRate = totalSprintPoints
-    ? (sprintDone.reduce((sum, task) => sum + task.points, 0) / totalSprintPoints) * 100
-    : 0;
+  // Single pass to collect all sprint-related metrics
+  const sprintMetrics = (() => {
+    const sprintTasks: typeof tasks = [];
+    const sprintDone: typeof tasks = [];
+    const sprintActive: typeof tasks = [];
+    const sprintPbis: typeof tasks = [];
+    const sprintPbiDone: typeof tasks = [];
+    let committedPoints = 0;
+    let totalSprintPoints = 0;
+    let donePoints = 0;
+
+    for (const task of tasks) {
+      const isSprintTask = sprint
+        ? task.sprintId === sprint.id || task.status === "SPRINT"
+        : task.status === "SPRINT";
+
+      if (!isSprintTask) continue;
+
+      sprintTasks.push(task);
+      totalSprintPoints += task.points;
+
+      if (task.status === "DONE") {
+        sprintDone.push(task);
+        donePoints += task.points;
+      } else {
+        sprintActive.push(task);
+        committedPoints += task.points;
+      }
+
+      if (task.type === "PBI") {
+        sprintPbis.push(task);
+        if (task.status === "DONE") {
+          sprintPbiDone.push(task);
+        }
+      }
+    }
+
+    const pbiCompletionRate = sprintPbis.length
+      ? (sprintPbiDone.length / sprintPbis.length) * 100
+      : 0;
+    const completionRate = totalSprintPoints ? (donePoints / totalSprintPoints) * 100 : 0;
+
+    return {
+      sprintTasks,
+      sprintDone,
+      sprintActive,
+      sprintPbis,
+      sprintPbiDone,
+      committedPoints,
+      totalSprintPoints,
+      pbiCompletionRate,
+      completionRate,
+    };
+  })();
+
+  const {
+    sprintTasks,
+    sprintDone,
+    sprintActive,
+    sprintPbis,
+    sprintPbiDone,
+    committedPoints,
+    totalSprintPoints,
+    pbiCompletionRate,
+    completionRate,
+  } = sprintMetrics;
 
   const doneTasks = tasks.filter((task) => task.status === "DONE");
   const leadTimeSample = doneTasks.slice(0, 5);
