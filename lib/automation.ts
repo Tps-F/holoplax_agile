@@ -2,16 +2,8 @@ import prisma from "./prisma";
 import { generateSplitSuggestions } from "./ai-suggestions";
 import { requestAiChat } from "./ai-provider";
 import type { AiUsageContext } from "./ai-usage";
-import { TASK_STATUS, TASK_TYPE } from "./types";
-import {
-  DELEGATE_TAG,
-  NO_DELEGATE_TAG,
-  PENDING_APPROVAL_TAG,
-  SPLIT_CHILD_TAG,
-  SPLIT_PARENT_TAG,
-  SPLIT_REJECTED_TAG,
-  withTag,
-} from "./automation-constants";
+import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, SEVERITY } from "./types";
+import { hasNoDelegateTag } from "./automation-constants";
 
 const scoreFromPoints = (points: number) =>
   Math.min(100, Math.max(0, Math.round(points * 9)));
@@ -66,7 +58,7 @@ const shouldDelegate = async (
   },
   context?: { userId: string; workspaceId: string },
 ) => {
-  if (task.tags?.includes(NO_DELEGATE_TAG)) return false;
+  if (hasNoDelegateTag(task.tags)) return false;
   const aiDecision = await llmDelegationDecision(task, {
     action: "AI_DELEGATE",
     userId: context?.userId ?? null,
@@ -102,9 +94,15 @@ export async function applyAutomationForTask(params: {
       points: true,
       status: true,
       tags: true,
+      automationState: true,
     },
   });
   if (!current || current.status !== TASK_STATUS.BACKLOG) {
+    return;
+  }
+
+  // Skip if already processed
+  if (current.automationState !== AUTOMATION_STATE.NONE) {
     return;
   }
 
@@ -119,6 +117,7 @@ export async function applyAutomationForTask(params: {
   const high = thresholds.high + stage * STAGE_STEP;
   const score = scoreFromPoints(current.points);
 
+  // Low score: delegate to AI
   if (score < low) {
     if (!(await shouldDelegate(current, { userId, workspaceId }))) {
       return;
@@ -126,7 +125,7 @@ export async function applyAutomationForTask(params: {
     await prisma.task.update({
       where: { id: current.id },
       data: {
-        tags: withTag(current.tags ?? [], DELEGATE_TAG),
+        automationState: AUTOMATION_STATE.DELEGATED,
       },
     });
     await prisma.aiSuggestion.create({
@@ -145,9 +144,8 @@ export async function applyAutomationForTask(params: {
     return;
   }
 
-  if (score > high && current.tags?.includes(SPLIT_REJECTED_TAG)) {
-    return;
-  }
+  // Note: We only reach here if automationState === NONE
+  // (already filtered above), so no need to check for SPLIT_REJECTED
 
   const splitResult = await generateSplitSuggestions({
     title: current.title,
@@ -165,7 +163,7 @@ export async function applyAutomationForTask(params: {
 
   const prefix = score > high ? "高スコア: 分割必須" : "中スコア: 分解提案";
 
-  // 中スコア帯は従来通りログのみ
+  // Medium score: log suggestion only
   if (score <= high) {
     await prisma.aiSuggestion.create({
       data: {
@@ -181,16 +179,12 @@ export async function applyAutomationForTask(params: {
     return;
   }
 
-  // 高スコア帯: 自動分解（承認モードなら保留タグだけ付ける）
-  if (current.tags?.includes(SPLIT_PARENT_TAG) || current.tags?.includes(SPLIT_REJECTED_TAG)) {
-    return; // 二重分解を防ぐ
-  }
-
+  // High score: auto-split (with approval if required)
   if (requireApproval) {
     await prisma.task.update({
       where: { id: current.id },
       data: {
-        tags: withTag(withTag(current.tags ?? [], SPLIT_PARENT_TAG), PENDING_APPROVAL_TAG),
+        automationState: AUTOMATION_STATE.PENDING_SPLIT,
       },
     });
     await prisma.aiSuggestion.create({
@@ -207,11 +201,12 @@ export async function applyAutomationForTask(params: {
     return;
   }
 
+  // Auto-split without approval
   await prisma.$transaction(async (tx) => {
     await tx.task.update({
       where: { id: current.id },
       data: {
-        tags: withTag(current.tags ?? [], SPLIT_PARENT_TAG),
+        automationState: AUTOMATION_STATE.SPLIT_PARENT,
       },
     });
 
@@ -222,10 +217,10 @@ export async function applyAutomationForTask(params: {
             title: item.title,
             description: item.detail ?? "",
             points: Number(item.points) || 1,
-            urgency: item.urgency ?? "中",
-            risk: item.risk ?? "中",
+            urgency: item.urgency ?? SEVERITY.MEDIUM,
+            risk: item.risk ?? SEVERITY.MEDIUM,
             status: TASK_STATUS.BACKLOG,
-            tags: withTag([], SPLIT_CHILD_TAG),
+            automationState: AUTOMATION_STATE.SPLIT_CHILD,
             type: TASK_TYPE.TASK,
             parentId: current.id,
             workspaceId,

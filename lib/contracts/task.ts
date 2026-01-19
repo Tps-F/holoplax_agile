@@ -1,8 +1,10 @@
 import { z } from "zod";
-import { TASK_STATUS, TASK_TYPE } from "../types";
+import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, SEVERITY } from "../types";
 
 const taskStatusValues = Object.values(TASK_STATUS) as [string, ...string[]];
 const taskTypeValues = Object.values(TASK_TYPE) as [string, ...string[]];
+const automationStateValues = Object.values(AUTOMATION_STATE) as [string, ...string[]];
+const severityValues = Object.values(SEVERITY) as [string, ...string[]];
 
 export const TaskStatusSchema = z.enum(taskStatusValues);
 export const TaskTypeSchema = z.enum(taskTypeValues);
@@ -41,8 +43,8 @@ export const TaskCreateSchema = z
     definitionOfDone: z.string().optional(),
     checklist: TaskChecklistSchema.optional().nullable(),
     points: TaskPointsSchema,
-    urgency: z.string().optional(),
-    risk: z.string().optional(),
+    urgency: z.enum(severityValues).optional(),
+    risk: z.enum(severityValues).optional(),
     status: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
     type: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
     parentId: nullableId,
@@ -62,10 +64,11 @@ export const TaskUpdateSchema = z
     definitionOfDone: z.string().optional(),
     checklist: TaskChecklistSchema.optional().nullable(),
     points: TaskPointsSchema.optional(),
-    urgency: z.string().optional(),
-    risk: z.string().optional(),
+    urgency: z.enum(severityValues).optional(),
+    risk: z.enum(severityValues).optional(),
     status: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
     type: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
+    automationState: z.enum(automationStateValues).optional(),
     parentId: nullableId,
     dueDate: z.preprocess(toStringOrEmpty, z.string().trim()).optional().nullable(),
     assigneeId: nullableId,

@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut, useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceId } from "../components/use-workspace-id";
 
@@ -109,6 +109,7 @@ export default function SettingsPage() {
   const [memorySavingId, setMemorySavingId] = useState<string | null>(null);
   const [memoryRemovingId, setMemoryRemovingId] = useState<string | null>(null);
   const [memoryQuestions, setMemoryQuestions] = useState<MemoryQuestionRow[]>([]);
+  const [editingMemoryId, setEditingMemoryId] = useState<string | null>(null);
   const [memoryQuestionLoading, setMemoryQuestionLoading] = useState(false);
   const [memoryQuestionActionId, setMemoryQuestionActionId] = useState<string | null>(null);
 
@@ -323,6 +324,81 @@ export default function SettingsPage() {
     );
   };
 
+  const MemoryCard = ({
+    type,
+    claim,
+    isEditing,
+    onEdit,
+    onCancel,
+    onSave,
+    onRemove,
+    saving,
+    removing,
+    renderInput,
+  }: {
+    type: MemoryTypeRow;
+    claim?: MemoryClaimRow;
+    value?: string;
+    isEditing: boolean;
+    onEdit: () => void;
+    onCancel: () => void;
+    onSave: () => void;
+    onRemove: () => void;
+    saving: boolean;
+    removing?: boolean;
+    onDraftChange?: (value: string) => void;
+    renderInput: () => ReactNode;
+    currentValue?: string;
+  }) => (
+    <div className="border border-slate-200 bg-slate-50 px-4 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{type.key}</p>
+          {type.description ? (
+            <p className="text-xs text-slate-500">{type.description}</p>
+          ) : null}
+        </div>
+        <div className="flex gap-2 text-xs">
+          {isEditing ? (
+            <>
+              <button
+                onClick={onRemove}
+                disabled={Boolean(removing)}
+                className="border border-rose-200 bg-rose-50 px-3 py-1 text-[11px] text-rose-700 transition hover:border-rose-300 disabled:opacity-50"
+              >
+                削除
+              </button>
+              <button
+                onClick={onSave}
+                disabled={saving}
+                className="border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb] disabled:opacity-50"
+              >
+                保存
+              </button>
+              <button
+                onClick={onCancel}
+                className="border border-slate-200 bg-white px-3 py-1 text-[11px] text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
+              >
+                キャンセル
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={onEdit}
+              className="border border-slate-200 bg-white px-3 py-1 text-[11px] text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
+            >
+              編集
+            </button>
+          )}
+        </div>
+      </div>
+      <div className="mt-2 text-xs text-slate-600">
+        現在値: {formatClaimValue(type, claim) || "未設定"}
+      </div>
+      {isEditing ? <div className="mt-3">{renderInput()}</div> : null}
+    </div>
+  );
+
   return (
     <main className="max-w-6xl flex-1 space-y-6 px-4 py-10 lg:ml-60 lg:px-6 lg:py-14">
       <header className="border border-slate-200 bg-white p-6 shadow-sm">
@@ -504,41 +580,30 @@ export default function SettingsPage() {
               </p>
               {userMemoryTypes.length ? (
                 userMemoryTypes.map((type) => (
-                  <div
+                  <MemoryCard
                     key={type.id}
-                    className="border border-slate-200 bg-slate-50 px-4 py-3"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">{type.key}</p>
-                        {type.description ? (
-                          <p className="text-xs text-slate-500">{type.description}</p>
-                        ) : null}
-                      </div>
-                      <span className="border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-500">
-                        {type.valueType}
-                      </span>
-                    </div>
-                    <div className="mt-3">{renderMemoryInput(type)}</div>
-                    <div className="mt-3 flex items-center gap-2 text-[11px]">
-                      <button
-                        onClick={() => saveMemory(type)}
-                        disabled={memorySavingId === type.id}
-                        className="border border-slate-200 bg-white px-2 py-1 text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb] disabled:opacity-50"
-                      >
-                        保存
-                      </button>
-                      {memoryClaims[type.id] ? (
-                        <button
-                          onClick={() => removeMemory(type)}
-                          disabled={memoryRemovingId === memoryClaims[type.id]?.id}
-                          className="border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700 transition hover:border-rose-300 disabled:opacity-50"
-                        >
-                          削除
-                        </button>
-                      ) : null}
-                    </div>
-                  </div>
+                    type={type}
+                    claim={memoryClaims[type.id]}
+                    value={memoryDrafts[type.id]}
+                    isEditing={editingMemoryId === type.id}
+                    onEdit={() => setEditingMemoryId(type.id)}
+                    onCancel={() => {
+                      setEditingMemoryId(null);
+                      setMemoryDrafts((prev) => ({
+                        ...prev,
+                        [type.id]: formatClaimValue(type, memoryClaims[type.id]),
+                      }));
+                    }}
+                    onSave={() =>
+                      saveMemory(type).then(() => setEditingMemoryId(null))
+                    }
+                    onRemove={() => removeMemory(type)}
+                    saving={memorySavingId === type.id}
+                    removing={memoryRemovingId === memoryClaims[type.id]?.id}
+                    onDraftChange={(value) => handleMemoryDraftChange(type.id, value)}
+                    renderInput={() => renderMemoryInput(type)}
+                    currentValue={formatClaimValue(type, memoryClaims[type.id])}
+                  />
                 ))
               ) : (
                 <p className="text-xs text-slate-500">ユーザー向けMemoryは未設定です。</p>
@@ -551,41 +616,30 @@ export default function SettingsPage() {
               {workspaceId ? (
                 workspaceMemoryTypes.length ? (
                   workspaceMemoryTypes.map((type) => (
-                    <div
+                    <MemoryCard
                       key={type.id}
-                      className="border border-slate-200 bg-slate-50 px-4 py-3"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{type.key}</p>
-                          {type.description ? (
-                            <p className="text-xs text-slate-500">{type.description}</p>
-                          ) : null}
-                        </div>
-                        <span className="border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-500">
-                          {type.valueType}
-                        </span>
-                      </div>
-                      <div className="mt-3">{renderMemoryInput(type)}</div>
-                      <div className="mt-3 flex items-center gap-2 text-[11px]">
-                        <button
-                          onClick={() => saveMemory(type)}
-                          disabled={memorySavingId === type.id}
-                          className="border border-slate-200 bg-white px-2 py-1 text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb] disabled:opacity-50"
-                        >
-                          保存
-                        </button>
-                        {memoryClaims[type.id] ? (
-                          <button
-                            onClick={() => removeMemory(type)}
-                            disabled={memoryRemovingId === memoryClaims[type.id]?.id}
-                            className="border border-rose-200 bg-rose-50 px-2 py-1 text-rose-700 transition hover:border-rose-300 disabled:opacity-50"
-                          >
-                            削除
-                          </button>
-                        ) : null}
-                      </div>
-                    </div>
+                      type={type}
+                      claim={memoryClaims[type.id]}
+                      value={memoryDrafts[type.id]}
+                      isEditing={editingMemoryId === type.id}
+                      onEdit={() => setEditingMemoryId(type.id)}
+                      onCancel={() => {
+                        setEditingMemoryId(null);
+                        setMemoryDrafts((prev) => ({
+                          ...prev,
+                          [type.id]: formatClaimValue(type, memoryClaims[type.id]),
+                        }));
+                      }}
+                      onSave={() =>
+                        saveMemory(type).then(() => setEditingMemoryId(null))
+                      }
+                      onRemove={() => removeMemory(type)}
+                      saving={memorySavingId === type.id}
+                      removing={memoryRemovingId === memoryClaims[type.id]?.id}
+                      onDraftChange={(value) => handleMemoryDraftChange(type.id, value)}
+                      renderInput={() => renderMemoryInput(type)}
+                      currentValue={formatClaimValue(type, memoryClaims[type.id])}
+                    />
                   ))
                 ) : (
                   <p className="text-xs text-slate-500">ワークスペース向けMemoryは未設定です。</p>

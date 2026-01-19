@@ -6,7 +6,7 @@ import { logAudit } from "../../../lib/audit";
 import { OnboardingSchema } from "../../../lib/contracts/onboarding";
 import { parseBody } from "../../../lib/http/validation";
 import prisma from "../../../lib/prisma";
-import { TASK_TYPE } from "../../../lib/types";
+import { TASK_TYPE, SEVERITY } from "../../../lib/types";
 
 export async function POST(request: Request) {
   return withApiHandler(
@@ -59,8 +59,8 @@ export async function POST(request: Request) {
           title: goalTitle,
           description: goalDescription,
           points: Number.isFinite(points) ? points : 3,
-          urgency: "中",
-          risk: "中",
+          urgency: SEVERITY.MEDIUM,
+          risk: SEVERITY.MEDIUM,
           status: "BACKLOG",
           type: TASK_TYPE.EPIC,
           userId,
@@ -80,8 +80,8 @@ export async function POST(request: Request) {
             title: routineTitle,
             description: routineDescription,
             points: 1,
-            urgency: "中",
-            risk: "低",
+            urgency: SEVERITY.MEDIUM,
+            risk: SEVERITY.LOW,
             status: "BACKLOG",
             type: TASK_TYPE.ROUTINE,
             dueDate: dueAt,
@@ -110,8 +110,8 @@ export async function POST(request: Request) {
             title,
             description: "",
             points: 1,
-            urgency: "中",
-            risk: "中",
+            urgency: SEVERITY.MEDIUM,
+            risk: SEVERITY.MEDIUM,
             status: "BACKLOG",
             type: TASK_TYPE.TASK,
             userId,

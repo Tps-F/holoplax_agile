@@ -7,7 +7,7 @@ import { IntakeResolveSchema } from "../../../../lib/contracts/intake";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
+import { TASK_STATUS, TASK_TYPE, SEVERITY } from "../../../../lib/types";
 
 const errors = createDomainErrors("INTAKE");
 
@@ -104,8 +104,8 @@ export async function POST(request: Request) {
             title: intakeItem.title,
             description: intakeItem.body,
             points: 3,
-            urgency: "中",
-            risk: "中",
+            urgency: SEVERITY.MEDIUM,
+            risk: SEVERITY.MEDIUM,
             status: TASK_STATUS.BACKLOG,
             type: typeValue,
             user: { connect: { id: userId } },

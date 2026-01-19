@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkspaceId } from "../components/use-workspace-id";
-import { TASK_STATUS, TASK_TYPE, TaskDTO, TaskStatus, TaskType } from "../../lib/types";
 import {
-  DELEGATE_TAG,
-  SPLIT_CHILD_TAG,
-  SPLIT_PARENT_TAG,
-} from "../../lib/automation-constants";
+  TASK_STATUS,
+  TASK_TYPE,
+  AUTOMATION_STATE,
+  TaskDTO,
+  TaskStatus,
+  TaskType,
+} from "../../lib/types";
 
 type MemberRow = {
   id: string;
@@ -48,10 +50,6 @@ export default function KanbanPage() {
   const [sprint, setSprint] = useState<SprintInfo>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [hoverColumn, setHoverColumn] = useState<TaskStatus | null>(null);
-  const aiTags = useMemo(
-    () => new Set([DELEGATE_TAG, SPLIT_CHILD_TAG, SPLIT_PARENT_TAG]),
-    [],
-  );
 
   const isBlocked = useCallback(
     (item: TaskDTO) =>
@@ -59,8 +57,10 @@ export default function KanbanPage() {
     [],
   );
   const isAiTask = useCallback(
-    (item: TaskDTO) => (item.tags ?? []).some((tag) => aiTags.has(tag)),
-    [aiTags],
+    (item: TaskDTO) =>
+      item.automationState !== undefined &&
+      item.automationState !== AUTOMATION_STATE.NONE,
+    [],
   );
 
   const fetchTasks = useCallback(async () => {
@@ -69,7 +69,9 @@ export default function KanbanPage() {
       setItems([]);
       return;
     }
-    const res = await fetch("/api/tasks");
+    const res = await fetch(
+      "/api/tasks?status=BACKLOG&status=SPRINT&status=DONE&limit=400",
+    );
     const data = await res.json();
     setItems(data.tasks ?? []);
   }, [ready, workspaceId]);

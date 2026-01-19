@@ -4,7 +4,7 @@ import { applyAutomationForTask } from "../../../../lib/automation";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { verifySlackSignature } from "../../../../lib/integrations/auth";
 import prisma from "../../../../lib/prisma";
-import { TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
+import { TASK_STATUS, TASK_TYPE, SEVERITY } from "../../../../lib/types";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 const getEnv = (key: string) => {
@@ -84,8 +84,8 @@ export async function POST(request: Request) {
           title,
           description: description ?? "",
           points,
-          urgency: "中",
-          risk: "中",
+          urgency: SEVERITY.MEDIUM,
+          risk: SEVERITY.MEDIUM,
           status: TASK_STATUS.BACKLOG,
           type: TASK_TYPE.PBI,
           workspace: { connect: { id: workspaceId } },
