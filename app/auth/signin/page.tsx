@@ -68,10 +68,7 @@ export default function SignInPage() {
               <h2 className="text-lg font-semibold text-slate-900">
                 {mode === "signup" ? "新規登録" : "ログイン"}
               </h2>
-              <Link
-                href="/backlog"
-                className="text-xs text-slate-500 hover:text-slate-900"
-              >
+              <Link href="/backlog" className="text-xs text-slate-500 hover:text-slate-900">
                 バックログへ
               </Link>
             </div>
@@ -84,10 +81,9 @@ export default function SignInPage() {
                     setMode("login");
                     setError(null);
                   }}
-                  className={`w-1/2 px-3 py-2 text-xs font-semibold ${mode === "login"
-                    ? "bg-[#2323eb] text-white"
-                    : "bg-white text-slate-600"
-                    }`}
+                  className={`w-1/2 px-3 py-2 text-xs font-semibold ${
+                    mode === "login" ? "bg-[#2323eb] text-white" : "bg-white text-slate-600"
+                  }`}
                 >
                   ログイン
                 </button>
@@ -97,10 +93,9 @@ export default function SignInPage() {
                     setMode("signup");
                     setError(null);
                   }}
-                  className={`w-1/2 px-3 py-2 text-xs font-semibold ${mode === "signup"
-                    ? "bg-[#2323eb] text-white"
-                    : "bg-white text-slate-600"
-                    }`}
+                  className={`w-1/2 px-3 py-2 text-xs font-semibold ${
+                    mode === "signup" ? "bg-[#2323eb] text-white" : "bg-white text-slate-600"
+                  }`}
                 >
                   新規登録
                 </button>
@@ -132,9 +127,7 @@ export default function SignInPage() {
                       redirect: false,
                     });
                     if (result?.error) {
-                      setError(
-                        "ログインに失敗しました。認証情報を確認してください。",
-                      );
+                      setError("ログインに失敗しました。認証情報を確認してください。");
                       setLoading(false);
                       return;
                     }
@@ -147,9 +140,7 @@ export default function SignInPage() {
                 >
                   {mode === "signup" ? (
                     <>
-                      <label className="text-xs text-slate-500">
-                        名前（任意）
-                      </label>
+                      <label className="text-xs text-slate-500">名前（任意）</label>
                       <div className="flex items-center gap-2 border border-slate-200 bg-slate-50 px-3 py-2 text-slate-700">
                         <User size={16} className="text-slate-400" />
                         <input
@@ -190,11 +181,7 @@ export default function SignInPage() {
                     </div>
                   ) : null}
                   <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span>
-                      {mode === "signup"
-                        ? "登録後にメール確認が必要です。"
-                        : ""}
-                    </span>
+                    <span>{mode === "signup" ? "登録後にメール確認が必要です。" : ""}</span>
                     <Link href="/auth/forgot" className="hover:text-[#2323eb]">
                       パスワードを忘れた
                     </Link>
@@ -204,11 +191,7 @@ export default function SignInPage() {
                     disabled={loading}
                     className="w-full bg-[#2323eb] py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[#2323eb]/20 disabled:opacity-60"
                   >
-                    {loading
-                      ? "処理中..."
-                      : mode === "signup"
-                        ? "登録して続行"
-                        : "ログイン"}
+                    {loading ? "処理中..." : mode === "signup" ? "登録して続行" : "ログイン"}
                   </button>
                 </form>
               ) : null}

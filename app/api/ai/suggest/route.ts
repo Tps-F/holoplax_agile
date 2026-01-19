@@ -1,11 +1,11 @@
-import { withApiHandler } from "../../../../lib/api-handler";
+import { requestAiChat } from "../../../../lib/ai-provider";
 import { requireWorkspaceAuth } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import { AiSuggestSchema } from "../../../../lib/contracts/ai";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { requestAiChat } from "../../../../lib/ai-provider";
 
 const canned = [
   "小さく分けて今日30分以内に終わる粒度にしてください。",

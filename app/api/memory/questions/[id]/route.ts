@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
-import { withApiHandler } from "../../../../../lib/api-handler";
 import { requireWorkspaceAuth } from "../../../../../lib/api-guards";
+import { withApiHandler } from "../../../../../lib/api-handler";
 import { ok } from "../../../../../lib/api-response";
 import { MemoryQuestionActionSchema } from "../../../../../lib/contracts/memory";
 import { createDomainErrors } from "../../../../../lib/http/errors";
@@ -34,10 +34,7 @@ const toNullableJsonInput = (
 };
 const errors = createDomainErrors("MEMORY");
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApiHandler(
     {
       logLabel: "PATCH /api/memory/questions/[id]",

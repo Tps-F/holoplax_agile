@@ -1,8 +1,7 @@
+import { normalizeStoryPoint, sanitizeSplitSuggestion } from "./ai-normalization";
 import { requestAiChat } from "./ai-provider";
 import type { AiUsageContext } from "./ai-usage";
-import { storyPointOptions } from "./points";
-import { normalizeStoryPoint, sanitizeSplitSuggestion } from "./ai-normalization";
-import { SEVERITY, Severity } from "./types";
+import { SEVERITY, type Severity } from "./types";
 
 export type SplitItem = {
   title: string;
@@ -52,7 +51,9 @@ export async function generateSplitSuggestions(params: {
 }): Promise<SplitSuggestionResult> {
   const { title, description, points, context } = params;
   let suggestions = fallbackSplit(title, description, points);
-  let usage: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } | undefined;
+  let usage:
+    | { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }
+    | undefined;
   let usedAi = false;
   let model = "fallback";
   let provider = "fallback";

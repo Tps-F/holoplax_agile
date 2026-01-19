@@ -1,8 +1,8 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { signOut, useSession } from "next-auth/react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { useWorkspaceId } from "../components/use-workspace-id";
 
 type MemoryTypeRow = {
@@ -48,7 +48,11 @@ type MemoryQuestionRow = {
 const formatClaimValue = (type: MemoryTypeRow, claim?: MemoryClaimRow) => {
   if (!claim) return "";
   if (type.valueType === "STRING") return claim.valueStr ?? "";
-  if (type.valueType === "NUMBER" || type.valueType === "DURATION_MS" || type.valueType === "RATIO") {
+  if (
+    type.valueType === "NUMBER" ||
+    type.valueType === "DURATION_MS" ||
+    type.valueType === "RATIO"
+  ) {
     return claim.valueNum !== null && claim.valueNum !== undefined ? String(claim.valueNum) : "";
   }
   if (type.valueType === "BOOL") {
@@ -72,7 +76,11 @@ const formatClaimValue = (type: MemoryTypeRow, claim?: MemoryClaimRow) => {
 const formatQuestionValue = (question: MemoryQuestionRow) => {
   const type = question.type;
   if (type.valueType === "STRING") return question.valueStr ?? "";
-  if (type.valueType === "NUMBER" || type.valueType === "DURATION_MS" || type.valueType === "RATIO") {
+  if (
+    type.valueType === "NUMBER" ||
+    type.valueType === "DURATION_MS" ||
+    type.valueType === "RATIO"
+  ) {
     return question.valueNum !== null && question.valueNum !== undefined
       ? String(question.valueNum)
       : "";
@@ -354,9 +362,7 @@ export default function SettingsPage() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-slate-900">{type.key}</p>
-          {type.description ? (
-            <p className="text-xs text-slate-500">{type.description}</p>
-          ) : null}
+          {type.description ? <p className="text-xs text-slate-500">{type.description}</p> : null}
         </div>
         <div className="flex gap-2 text-xs">
           {isEditing ? (
@@ -404,9 +410,7 @@ export default function SettingsPage() {
       <header className="border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Settings
-            </p>
+            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Settings</p>
             <h1 className="text-3xl font-semibold text-slate-900">設定</h1>
             <p className="text-sm text-slate-600">
               しきい値、通知、ストレージなどの設定（モック）。
@@ -419,10 +423,7 @@ export default function SettingsPage() {
       </header>
 
       <section className="grid gap-4 lg:grid-cols-2">
-        <div
-          id="account"
-          className="border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2"
-        >
+        <div id="account" className="border border-slate-200 bg-white p-6 shadow-sm lg:col-span-2">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-slate-900">アカウント</h3>
           </div>
@@ -456,11 +457,7 @@ export default function SettingsPage() {
             <div className="h-12 w-12 border border-slate-200 bg-slate-100">
               {account.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={account.image}
-                  alt="avatar"
-                  className="h-full w-full object-cover"
-                />
+                <img src={account.image} alt="avatar" className="h-full w-full object-cover" />
               ) : null}
             </div>
             <label className="text-xs text-slate-500">
@@ -594,9 +591,7 @@ export default function SettingsPage() {
                         [type.id]: formatClaimValue(type, memoryClaims[type.id]),
                       }));
                     }}
-                    onSave={() =>
-                      saveMemory(type).then(() => setEditingMemoryId(null))
-                    }
+                    onSave={() => saveMemory(type).then(() => setEditingMemoryId(null))}
                     onRemove={() => removeMemory(type)}
                     saving={memorySavingId === type.id}
                     removing={memoryRemovingId === memoryClaims[type.id]?.id}
@@ -630,9 +625,7 @@ export default function SettingsPage() {
                           [type.id]: formatClaimValue(type, memoryClaims[type.id]),
                         }));
                       }}
-                      onSave={() =>
-                        saveMemory(type).then(() => setEditingMemoryId(null))
-                      }
+                      onSave={() => saveMemory(type).then(() => setEditingMemoryId(null))}
                       onRemove={() => removeMemory(type)}
                       saving={memorySavingId === type.id}
                       removing={memoryRemovingId === memoryClaims[type.id]?.id}
@@ -645,9 +638,7 @@ export default function SettingsPage() {
                   <p className="text-xs text-slate-500">ワークスペース向けMemoryは未設定です。</p>
                 )
               ) : (
-                <p className="text-xs text-slate-500">
-                  ワークスペースを選択すると表示されます。
-                </p>
+                <p className="text-xs text-slate-500">ワークスペースを選択すると表示されます。</p>
               )}
             </div>
           </div>
@@ -663,9 +654,7 @@ export default function SettingsPage() {
             >
               通知を{notifications ? "無効化" : "有効化"}
             </button>
-            <span className="text-xs text-slate-600">
-              現在: {notifications ? "オン" : "オフ"}
-            </span>
+            <span className="text-xs text-slate-600">現在: {notifications ? "オン" : "オフ"}</span>
           </div>
         </div>
 
@@ -681,7 +670,6 @@ export default function SettingsPage() {
             </button>
           </div>
         </div>
-
       </section>
 
       {activeQuestion ? (
@@ -689,16 +677,10 @@ export default function SettingsPage() {
           <div className="w-full max-w-lg border border-slate-200 bg-white p-6 shadow-lg">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">
-                  Memory 確認
-                </p>
-                <h3 className="text-lg font-semibold text-slate-900">
-                  {activeQuestion.type.key}
-                </h3>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Memory 確認</p>
+                <h3 className="text-lg font-semibold text-slate-900">{activeQuestion.type.key}</h3>
                 {activeQuestion.type.description ? (
-                  <p className="text-xs text-slate-500">
-                    {activeQuestion.type.description}
-                  </p>
+                  <p className="text-xs text-slate-500">{activeQuestion.type.description}</p>
                 ) : null}
               </div>
               <span className="border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-700">
@@ -706,16 +688,12 @@ export default function SettingsPage() {
               </span>
             </div>
             <div className="mt-4 border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-                候補値
-              </p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">候補値</p>
               <pre className="mt-2 whitespace-pre-wrap text-sm text-slate-700">
                 {formatQuestionValue(activeQuestion) || "値が未設定です"}
               </pre>
             </div>
-            <p className="mt-3 text-xs text-slate-500">
-              この内容をMemoryとして保存しますか？
-            </p>
+            <p className="mt-3 text-xs text-slate-500">この内容をMemoryとして保存しますか？</p>
             <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
               <button
                 onClick={() => respondMemoryQuestion(activeQuestion, "accept")}

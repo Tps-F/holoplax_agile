@@ -26,9 +26,7 @@ const baseUrlPlaceholder = "http://localhost:4000";
 export default function AdminAiSettingsPage() {
   const [setting, setSetting] = useState<AiSetting | null>(null);
   const [apiKey, setApiKey] = useState("");
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">(
-    "idle",
-  );
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
 
   const fetchSetting = useCallback(async () => {
@@ -80,9 +78,7 @@ export default function AdminAiSettingsPage() {
       <header className="border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Admin
-            </p>
+            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Admin</p>
             <h1 className="text-3xl font-semibold text-slate-900">AI設定</h1>
             <p className="text-sm text-slate-600">
               LiteLLM/OpenAI互換ゲートウェイのモデルとAPIキーを設定します。
@@ -112,9 +108,7 @@ export default function AdminAiSettingsPage() {
                   <select
                     value={modelPresets.includes(setting.model) ? setting.model : modelDefault}
                     onChange={(e) =>
-                      setSetting((prev) =>
-                        prev ? { ...prev, model: e.target.value } : prev,
-                      )
+                      setSetting((prev) => (prev ? { ...prev, model: e.target.value } : prev))
                     }
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   >
@@ -158,9 +152,7 @@ export default function AdminAiSettingsPage() {
               />
               この設定を有効化する
               {setting.source === "env" ? (
-                <span className="text-[11px] text-slate-500">
-                  （現在は環境変数の設定を参照）
-                </span>
+                <span className="text-[11px] text-slate-500">（現在は環境変数の設定を参照）</span>
               ) : null}
             </label>
             <div className="flex items-center gap-3">

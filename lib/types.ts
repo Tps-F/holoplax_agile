@@ -43,9 +43,9 @@ export const SEVERITY_LABELS: Record<Severity, string> = {
 
 // Reverse mapping for parsing Japanese input
 export const SEVERITY_FROM_LABEL: Record<string, Severity> = {
-  "低": SEVERITY.LOW,
-  "中": SEVERITY.MEDIUM,
-  "高": SEVERITY.HIGH,
+  低: SEVERITY.LOW,
+  中: SEVERITY.MEDIUM,
+  高: SEVERITY.HIGH,
 };
 
 export type TaskDTO = {

@@ -1,5 +1,5 @@
-import { withApiHandler } from "../../../../lib/api-handler";
 import { requireAdmin } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import { logAudit } from "../../../../lib/audit";
 import { AdminAiUpdateSchema } from "../../../../lib/contracts/admin";
@@ -12,15 +12,9 @@ const errors = createDomainErrors("ADMIN");
 
 const getEnvFallback = () => ({
   model:
-    process.env.AI_MODEL ??
-    process.env.LITELLM_MODEL ??
-    process.env.OPENAI_MODEL ??
-    DEFAULT_MODEL,
+    process.env.AI_MODEL ?? process.env.LITELLM_MODEL ?? process.env.OPENAI_MODEL ?? DEFAULT_MODEL,
   baseUrl:
-    process.env.AI_BASE_URL ??
-    process.env.LITELLM_BASE_URL ??
-    process.env.OPENAI_BASE_URL ??
-    "",
+    process.env.AI_BASE_URL ?? process.env.LITELLM_BASE_URL ?? process.env.OPENAI_BASE_URL ?? "",
   enabled: false,
   hasApiKey: Boolean(
     process.env.AI_API_KEY ?? process.env.LITELLM_API_KEY ?? process.env.OPENAI_API_KEY,

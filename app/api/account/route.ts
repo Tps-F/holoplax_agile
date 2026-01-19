@@ -45,7 +45,9 @@ export async function PATCH(request: Request) {
         code: "ACCOUNT_VALIDATION",
       });
       const name = String(body.name ?? "").trim();
-      const email = String(body.email ?? "").toLowerCase().trim();
+      const email = String(body.email ?? "")
+        .toLowerCase()
+        .trim();
       const image = String(body.image ?? "").trim();
 
       if (email) {

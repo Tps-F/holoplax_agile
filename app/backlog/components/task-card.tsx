@@ -1,16 +1,15 @@
 "use client";
 
 import { Pencil, Trash2 } from "lucide-react";
-import { LoadingButton } from "../../components/loading-button";
 import {
-  TASK_STATUS,
-  TASK_TYPE,
   AUTOMATION_STATE,
   SEVERITY_LABELS,
-  TaskDTO,
-  TaskType,
-  Severity,
+  type Severity,
+  TASK_TYPE,
+  type TaskDTO,
+  type TaskType,
 } from "../../../lib/types";
+import { LoadingButton } from "../../components/loading-button";
 
 const taskTypeLabels: Record<TaskType, string> = {
   [TASK_TYPE.EPIC]: "目標",
@@ -118,14 +117,10 @@ export function TaskCard({
         </div>
       </div>
 
-      {item.description ? (
-        <p className="mt-1 text-sm text-slate-700">{item.description}</p>
-      ) : null}
+      {item.description ? <p className="mt-1 text-sm text-slate-700">{item.description}</p> : null}
 
       {item.definitionOfDone ? (
-        <p className="mt-1 text-xs text-slate-500">
-          完了条件: {item.definitionOfDone}
-        </p>
+        <p className="mt-1 text-xs text-slate-500">完了条件: {item.definitionOfDone}</p>
       ) : null}
 
       {item.checklist && item.checklist.length > 0 ? (
@@ -138,11 +133,7 @@ export function TaskCard({
                 onChange={() => onToggleChecklistItem(item.id, check.id)}
                 className="accent-[#2323eb]"
               />
-              <span
-                className={
-                  check.done ? "line-through text-slate-400" : "text-slate-600"
-                }
-              >
+              <span className={check.done ? "line-through text-slate-400" : "text-slate-600"}>
                 {check.text}
               </span>
             </label>
@@ -152,9 +143,7 @@ export function TaskCard({
 
       {/* Child count indicator */}
       {childCount > 0 ? (
-        <p className="mt-1 text-xs text-slate-500">
-          子タスク: {childCount} 件
-        </p>
+        <p className="mt-1 text-xs text-slate-500">子タスク: {childCount} 件</p>
       ) : null}
 
       {/* Action buttons */}
@@ -249,13 +238,9 @@ export function TaskCard({
       {/* AI Score Suggestion */}
       {score ? (
         <div className="mt-2 border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-            Score suggestion
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Score suggestion</p>
           <div className="mt-1 flex items-center gap-2 text-slate-800">
-            <span className="border border-slate-200 px-2 py-1">
-              {score.points} pt
-            </span>
+            <span className="border border-slate-200 px-2 py-1">{score.points} pt</span>
             <span className="border border-slate-200 px-2 py-1">
               緊急度: {SEVERITY_LABELS[score.urgency as Severity] ?? score.urgency}
             </span>
@@ -263,9 +248,7 @@ export function TaskCard({
               リスク: {SEVERITY_LABELS[score.risk as Severity] ?? score.risk}
             </span>
           </div>
-          {score.reason ? (
-            <p className="mt-1 text-slate-600">{score.reason}</p>
-          ) : null}
+          {score.reason ? <p className="mt-1 text-slate-600">{score.reason}</p> : null}
           <div className="mt-2 flex items-center gap-2">
             <button
               onClick={() => onApplyScoreSuggestion(item.id)}
@@ -280,17 +263,13 @@ export function TaskCard({
       {/* Split Suggestions */}
       {splits && splits.length > 0 ? (
         <div className="mt-2 border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
-          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-            分解提案
-          </p>
+          <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">分解提案</p>
           <div className="mt-1 grid gap-2">
             {splits.map((split, idx) => (
               <div key={idx} className="border border-slate-100 p-2">
                 <p className="font-semibold text-slate-900">{split.title}</p>
                 <div className="mt-1 flex items-center gap-2 text-[11px]">
-                  <span className="border border-slate-200 px-1 py-0.5">
-                    {split.points} pt
-                  </span>
+                  <span className="border border-slate-200 px-1 py-0.5">{split.points} pt</span>
                   <span className="border border-slate-200 px-1 py-0.5">
                     緊急度: {SEVERITY_LABELS[split.urgency as Severity] ?? split.urgency}
                   </span>
@@ -298,9 +277,7 @@ export function TaskCard({
                     リスク: {SEVERITY_LABELS[split.risk as Severity] ?? split.risk}
                   </span>
                 </div>
-                {split.detail ? (
-                  <p className="mt-1 text-slate-600">{split.detail}</p>
-                ) : null}
+                {split.detail ? <p className="mt-1 text-slate-600">{split.detail}</p> : null}
               </div>
             ))}
           </div>

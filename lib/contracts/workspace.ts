@@ -18,10 +18,7 @@ export const WorkspaceCreateSchema = z
 
 export const WorkspaceCurrentSchema = z
   .object({
-    workspaceId: z.preprocess(
-      toStringOrEmpty,
-      z.string().trim().min(1, "workspaceId is required"),
-    ),
+    workspaceId: z.preprocess(toStringOrEmpty, z.string().trim().min(1, "workspaceId is required")),
   })
   .passthrough();
 

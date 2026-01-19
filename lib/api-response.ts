@@ -16,15 +16,10 @@ const buildEnvelope = (code: string, message: string, details?: unknown): ErrorE
   return { error: { code, message, details } };
 };
 
-const errorResponse = (
-  code: string,
-  message: string,
-  status: number,
-  details?: unknown,
-) => NextResponse.json(buildEnvelope(code, message, details), { status });
+const errorResponse = (code: string, message: string, status: number, details?: unknown) =>
+  NextResponse.json(buildEnvelope(code, message, details), { status });
 
-export const ok = (data: unknown, init?: ResponseInit) =>
-  NextResponse.json(data, init);
+export const ok = (data: unknown, init?: ResponseInit) => NextResponse.json(data, init);
 
 export const badRequest = (message: string, code = "BAD_REQUEST", details?: unknown) =>
   errorResponse(code, message, 400, details);

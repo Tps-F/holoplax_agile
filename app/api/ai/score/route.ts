@@ -1,15 +1,12 @@
-import { withApiHandler } from "../../../../lib/api-handler";
+import { normalizeSeverity, normalizeStoryPoint } from "../../../../lib/ai-normalization";
+import { requestAiChat } from "../../../../lib/ai-provider";
 import { requireWorkspaceAuth } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import { AiScoreSchema } from "../../../../lib/contracts/ai";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
-import { requestAiChat } from "../../../../lib/ai-provider";
 import prisma from "../../../../lib/prisma";
-import {
-  normalizeSeverity,
-  normalizeStoryPoint,
-} from "../../../../lib/ai-normalization";
 import { SEVERITY } from "../../../../lib/types";
 
 const fallbackEstimate = (title: string, description: string) => {
@@ -66,8 +63,7 @@ export async function POST(request: Request) {
 
       try {
         const result = await requestAiChat({
-          system:
-            "あなたはアジャイルなタスク見積もりアシスタントです。JSONのみで返してください。",
+          system: "あなたはアジャイルなタスク見積もりアシスタントです。JSONのみで返してください。",
           user: `以下を見積もり、JSONで返してください: { "points": number(1-13), "urgency": "低|中|高", "risk": "低|中|高", "score": number(0-100), "reason": string }。\nタイトル: ${title}\n説明: ${description}`,
           maxTokens: 120,
           context: {

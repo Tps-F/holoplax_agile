@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
-  TASK_TYPE,
   SEVERITY,
   SEVERITY_LABELS,
-  TaskDTO,
-  TaskType,
-  Severity,
+  type Severity,
+  TASK_TYPE,
+  type TaskDTO,
+  type TaskType,
 } from "../../../lib/types";
 
 const storyPoints = [1, 2, 3, 5, 8, 13, 21, 34];
@@ -19,9 +19,8 @@ const taskTypeOptions = [
   { value: TASK_TYPE.ROUTINE, label: "ルーティン" },
 ];
 
-const checklistToText = (
-  checklist?: { id: string; text: string; done: boolean }[] | null
-) => (checklist ?? []).map((item) => item.text).join("\n");
+const checklistToText = (checklist?: { id: string; text: string; done: boolean }[] | null) =>
+  (checklist ?? []).map((item) => item.text).join("\n");
 
 type MemberRow = {
   id: string;
@@ -138,17 +137,13 @@ export function TaskEditModal({
           />
           <input
             value={form.definitionOfDone}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, definitionOfDone: e.target.value }))
-            }
+            onChange={(e) => setForm((p) => ({ ...p, definitionOfDone: e.target.value }))}
             placeholder="完了条件（DoD）"
             className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
           />
           <textarea
             value={form.checklistText}
-            onChange={(e) =>
-              setForm((p) => ({ ...p, checklistText: e.target.value }))
-            }
+            onChange={(e) => setForm((p) => ({ ...p, checklistText: e.target.value }))}
             placeholder="チェックリスト（1行1項目）"
             rows={3}
             className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
@@ -156,9 +151,7 @@ export function TaskEditModal({
           <div className="grid gap-3 sm:grid-cols-3">
             <select
               value={form.points}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, points: Number(e.target.value) || 1 }))
-              }
+              onChange={(e) => setForm((p) => ({ ...p, points: Number(e.target.value) || 1 }))}
               className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
             >
               {storyPoints.map((pt) => (
@@ -173,7 +166,9 @@ export function TaskEditModal({
               className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
             >
               {severityOptions.map((v) => (
-                <option key={v} value={v}>{SEVERITY_LABELS[v]}</option>
+                <option key={v} value={v}>
+                  {SEVERITY_LABELS[v]}
+                </option>
               ))}
             </select>
             <select
@@ -182,7 +177,9 @@ export function TaskEditModal({
               className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
             >
               {severityOptions.map((v) => (
-                <option key={v} value={v}>{SEVERITY_LABELS[v]}</option>
+                <option key={v} value={v}>
+                  {SEVERITY_LABELS[v]}
+                </option>
               ))}
             </select>
           </div>
@@ -191,9 +188,7 @@ export function TaskEditModal({
               種別
               <select
                 value={form.type}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, type: e.target.value as TaskType }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, type: e.target.value as TaskType }))}
                 className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
               >
                 {taskTypeOptions.map((option) => (
@@ -226,9 +221,7 @@ export function TaskEditModal({
               ルーティン周期
               <select
                 value={form.routineCadence}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, routineCadence: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, routineCadence: e.target.value }))}
                 className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
               >
                 <option value="DAILY">毎日</option>
@@ -251,9 +244,7 @@ export function TaskEditModal({
               担当
               <select
                 value={form.assigneeId}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, assigneeId: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, assigneeId: e.target.value }))}
                 className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
               >
                 <option value="">未設定</option>
@@ -280,9 +271,7 @@ export function TaskEditModal({
               multiple
               value={form.dependencyIds}
               onChange={(e) => {
-                const selected = Array.from(e.target.selectedOptions).map(
-                  (option) => option.value
-                );
+                const selected = Array.from(e.target.selectedOptions).map((option) => option.value);
                 setForm((p) => ({ ...p, dependencyIds: selected }));
               }}
               className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"

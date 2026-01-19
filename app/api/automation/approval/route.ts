@@ -1,15 +1,15 @@
-import { withApiHandler } from "../../../../lib/api-handler";
-import { requireWorkspaceAuth } from "../../../../lib/api-guards";
-import { ok } from "../../../../lib/api-response";
+import { sanitizeSplitSuggestion } from "../../../../lib/ai-normalization";
 import type { SplitItem } from "../../../../lib/ai-suggestions";
 import { generateSplitSuggestions } from "../../../../lib/ai-suggestions";
-import { sanitizeSplitSuggestion } from "../../../../lib/ai-normalization";
+import { requireWorkspaceAuth } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
+import { ok } from "../../../../lib/api-response";
+import { logAudit } from "../../../../lib/audit";
 import { AutomationApprovalSchema } from "../../../../lib/contracts/automation";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, SEVERITY } from "../../../../lib/types";
-import { logAudit } from "../../../../lib/audit";
+import { AUTOMATION_STATE, SEVERITY, TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
 
 const STAGE_COOLDOWN_DAYS = 7;
 const MAX_STAGE = 3;
@@ -138,10 +138,7 @@ export async function POST(request: Request) {
           source: "approval",
         },
       });
-      const suggestions = parseSuggestions(
-        latest?.output ?? null,
-        fallbackResult.suggestions,
-      );
+      const suggestions = parseSuggestions(latest?.output ?? null, fallbackResult.suggestions);
       await prisma.$transaction(async (tx) => {
         await tx.task.update({
           where: { id: task.id },

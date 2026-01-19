@@ -1,6 +1,6 @@
-import { Prisma, SuggestionReaction, TaskType } from "@prisma/client";
-import { withApiHandler } from "../../../../lib/api-handler";
+import { Prisma, type SuggestionReaction, type TaskType } from "@prisma/client";
 import { requireWorkspaceAuth } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import { AiReactionSchema } from "../../../../lib/contracts/ai";
 import { createDomainErrors } from "../../../../lib/http/errors";
@@ -24,19 +24,12 @@ export async function POST(request: Request) {
       },
     },
     async () => {
-      const { userId, workspaceId } = await requireWorkspaceAuth({
+      const { userId } = await requireWorkspaceAuth({
         domain: "AI",
         requireWorkspace: false,
       });
       const body = await parseBody(request, AiReactionSchema, { code: "AI_VALIDATION" });
-      const {
-        suggestionId,
-        reaction,
-        context,
-        modification,
-        viewedAt,
-        reactedAt,
-      } = body;
+      const { suggestionId, reaction, context, modification, viewedAt, reactedAt } = body;
 
       // 該当のSuggestionが存在するか確認
       const suggestion = await prisma.aiSuggestion.findUnique({
@@ -51,9 +44,7 @@ export async function POST(request: Request) {
       const viewedDate = viewedAt ? new Date(viewedAt) : null;
       const reactedDate = reactedAt ? new Date(reactedAt) : null;
       const latencyMs =
-        viewedDate && reactedDate
-          ? reactedDate.getTime() - viewedDate.getTime()
-          : null;
+        viewedDate && reactedDate ? reactedDate.getTime() - viewedDate.getTime() : null;
 
       // 反応の記録
       await prisma.aiSuggestionReaction.create({
@@ -89,11 +80,7 @@ export async function POST(request: Request) {
  * EMAベースで受容率を即時更新する
  * typeKey: ai_{type}_accept_rate_30d
  */
-async function updateAcceptRateEMA(
-  userId: string,
-  suggestionType: string,
-  reaction: string,
-) {
+async function updateAcceptRateEMA(userId: string, suggestionType: string, reaction: string) {
   const typeKey = `ai_${suggestionType.toLowerCase()}_accept_rate_30d`;
   const memoryType = await prisma.memoryType.findFirst({
     where: { key: typeKey, scope: "USER" },
@@ -109,7 +96,7 @@ async function updateAcceptRateEMA(
 
   // EMA: alpha = 1 - 2^(-1/decayDays)
   const decayDays = memoryType.decayDays ?? 30;
-  const alpha = 1 - Math.pow(2, -1 / decayDays);
+  const alpha = 1 - 2 ** (-1 / decayDays);
   const newValue = reaction === "ACCEPTED" || reaction === "MODIFIED" ? 1 : 0;
   const prevValue = claim?.valueNum ?? 0.5; // 初期値は50%
   const nextValue = alpha * newValue + (1 - alpha) * prevValue;

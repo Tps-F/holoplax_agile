@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
-import { withApiHandler } from "../../../../lib/api-handler";
 import { requireWorkspaceAuth } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import { MemoryQuestionCreateSchema } from "../../../../lib/contracts/memory";
 import { createDomainErrors } from "../../../../lib/http/errors";
@@ -34,10 +34,7 @@ export async function GET() {
         where: {
           status: "PENDING",
           confidence: { gte: CONFIDENCE_THRESHOLD },
-          OR: [
-            { userId },
-            ...(workspaceId ? [{ workspaceId }] : []),
-          ],
+          OR: [{ userId }, ...(workspaceId ? [{ workspaceId }] : [])],
         },
         orderBy: { createdAt: "asc" },
         select: {

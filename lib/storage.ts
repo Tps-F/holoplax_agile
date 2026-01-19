@@ -61,10 +61,7 @@ export async function ensureAvatarBucket() {
   }
 }
 
-export async function createAvatarUploadUrl(params: {
-  key: string;
-  contentType: string;
-}) {
+export async function createAvatarUploadUrl(params: { key: string; contentType: string }) {
   const client = getClient();
   const command = new PutObjectCommand({
     Bucket: bucket,

@@ -6,7 +6,7 @@ import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import { validateSharedToken } from "../../../../lib/integrations/auth";
 import prisma from "../../../../lib/prisma";
-import { TASK_STATUS, TASK_TYPE, SEVERITY, SEVERITY_FROM_LABEL } from "../../../../lib/types";
+import { SEVERITY, SEVERITY_FROM_LABEL, TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
 import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 export async function POST(request: Request) {
@@ -35,8 +35,7 @@ export async function POST(request: Request) {
       const rawRisk = String(body.risk ?? "").trim();
       const urgency = SEVERITY_FROM_LABEL[rawUrgency] ?? SEVERITY.MEDIUM;
       const risk = SEVERITY_FROM_LABEL[rawRisk] ?? SEVERITY.MEDIUM;
-      const userId =
-        process.env.DISCORD_USER_ID ?? process.env.INTEGRATION_USER_ID ?? "";
+      const userId = process.env.DISCORD_USER_ID ?? process.env.INTEGRATION_USER_ID ?? "";
       const workspaceEnv = process.env.DISCORD_WORKSPACE_ID ?? "";
 
       if (!rawTitle) {

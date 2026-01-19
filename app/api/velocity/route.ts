@@ -1,5 +1,5 @@
-import { withApiHandler } from "../../../lib/api-handler";
 import { requireWorkspaceAuth } from "../../../lib/api-guards";
+import { withApiHandler } from "../../../lib/api-handler";
 import { ok } from "../../../lib/api-response";
 import { logAudit } from "../../../lib/audit";
 import { VelocityCreateSchema } from "../../../lib/contracts/velocity";
@@ -8,7 +8,6 @@ import { parseBody } from "../../../lib/http/validation";
 import prisma from "../../../lib/prisma";
 
 const errors = createDomainErrors("VELOCITY");
-
 
 export async function GET() {
   return withApiHandler(
@@ -34,7 +33,7 @@ export async function GET() {
         recent.length > 0 ? recent.reduce((sum, value) => sum + value, 0) / recent.length : 0;
       const variance =
         recent.length > 0
-          ? recent.reduce((sum, value) => sum + Math.pow(value - avg, 2), 0) / recent.length
+          ? recent.reduce((sum, value) => sum + (value - avg) ** 2, 0) / recent.length
           : 0;
       const stdDev = Math.sqrt(variance);
 
@@ -46,9 +45,9 @@ export async function GET() {
       const sprintIds = sprints.map((sprint) => sprint.id);
       const pbiTasks = sprintIds.length
         ? await prisma.task.findMany({
-          where: { workspaceId, sprintId: { in: sprintIds }, type: "PBI" },
-          select: { sprintId: true, status: true, points: true },
-        })
+            where: { workspaceId, sprintId: { in: sprintIds }, type: "PBI" },
+            select: { sprintId: true, status: true, points: true },
+          })
         : [];
       const latestSprintId = sprints[0]?.id ?? null;
       const latestPbiTasks = latestSprintId

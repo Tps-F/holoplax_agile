@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { VelocityEntryDTO } from "../../lib/types";
 import { useWorkspaceId } from "../components/use-workspace-id";
-import { VelocityEntryDTO } from "../../lib/types";
 
 export default function VelocityPage() {
   const { workspaceId, ready } = useWorkspaceId();
@@ -57,9 +57,7 @@ export default function VelocityPage() {
       <header className="border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Velocity
-            </p>
+            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Velocity</p>
             <h1 className="text-3xl font-semibold text-slate-900">ベロシティ</h1>
             <p className="text-sm text-slate-600">スプリント履歴のポイントとレンジを記録。</p>
           </div>

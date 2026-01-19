@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { LoadingButton } from "../../components/loading-button";
 import {
-  TASK_TYPE,
   SEVERITY,
   SEVERITY_LABELS,
-  TaskDTO,
-  TaskType,
-  Severity,
+  type Severity,
+  TASK_TYPE,
+  type TaskDTO,
+  type TaskType,
 } from "../../../lib/types";
+import { LoadingButton } from "../../components/loading-button";
 
 const storyPoints = [1, 2, 3, 5, 8, 13, 21, 34];
 const severityOptions: Severity[] = [SEVERITY.LOW, SEVERITY.MEDIUM, SEVERITY.HIGH];
@@ -158,16 +158,11 @@ export function TaskCreateWizard({
       }
       setAiQuestions([
         suggestionText || "このタスクの詳細／背景を教えてください。",
-        scoreData.reason
-          ? `AI推定理由: ${scoreData.reason}`
-          : "補足情報があれば教えてください。",
+        scoreData.reason ? `AI推定理由: ${scoreData.reason}` : "補足情報があれば教えてください。",
       ]);
     } catch {
       setAiError("AI支援に失敗しました。手動で入力できます。");
-      setAiQuestions([
-        "このタスクの目的は何ですか？",
-        "優先順位が高い理由は何ですか？",
-      ]);
+      setAiQuestions(["このタスクの目的は何ですか？", "優先順位が高い理由は何ですか？"]);
     } finally {
       setAiLoading(false);
     }
@@ -237,8 +232,8 @@ export function TaskCreateWizard({
           {creationStep === 1
             ? "まずは要件と背景を教えてください。"
             : creationStep === 2
-            ? "どうやったら終わるかを教えてください。"
-            : "情報を確認してタスクを仕上げます。"}
+              ? "どうやったら終わるかを教えてください。"
+              : "情報を確認してタスクを仕上げます。"}
         </p>
 
         {creationStep === 1 ? (
@@ -256,9 +251,7 @@ export function TaskCreateWizard({
               rows={4}
               className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
             />
-            {aiError ? (
-              <p className="text-xs text-rose-600">{aiError}</p>
-            ) : null}
+            {aiError ? <p className="text-xs text-rose-600">{aiError}</p> : null}
             <div className="mt-4 flex items-center justify-between">
               <button
                 onClick={handleClose}
@@ -292,16 +285,12 @@ export function TaskCreateWizard({
             </p>
             <textarea
               value={form.definitionOfDone}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, definitionOfDone: e.target.value }))
-              }
+              onChange={(e) => setForm((p) => ({ ...p, definitionOfDone: e.target.value }))}
               placeholder="どうやったら終わる？"
               rows={4}
               className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
             />
-            {definitionError ? (
-              <p className="text-xs text-rose-600">{definitionError}</p>
-            ) : null}
+            {definitionError ? <p className="text-xs text-rose-600">{definitionError}</p> : null}
             <div className="mt-4 border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-700">
               <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
                 AIの追加質問
@@ -350,9 +339,7 @@ export function TaskCreateWizard({
           <div className="mt-4 grid gap-3">
             {estimatedScore ? (
               <div className="border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                <p className="font-semibold text-slate-900">
-                  AI予測を踏まえて詳細を整えています。
-                </p>
+                <p className="font-semibold text-slate-900">AI予測を踏まえて詳細を整えています。</p>
                 <p className="mt-1 text-[11px] text-slate-500">
                   {`推定: ${estimatedScore.points} pt / 緊急度: ${SEVERITY_LABELS[estimatedScore.urgency as Severity] ?? estimatedScore.urgency} / リスク: ${SEVERITY_LABELS[estimatedScore.risk as Severity] ?? estimatedScore.risk}`}
                 </p>
@@ -435,9 +422,7 @@ export function TaskCreateWizard({
                 種別
                 <select
                   value={form.type}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, type: e.target.value as TaskType }))
-                  }
+                  onChange={(e) => setForm((p) => ({ ...p, type: e.target.value as TaskType }))}
                   className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 >
                   {taskTypeOptions.map((option) => (
@@ -468,9 +453,7 @@ export function TaskCreateWizard({
                 ルーティン周期
                 <select
                   value={form.routineCadence}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, routineCadence: e.target.value }))
-                  }
+                  onChange={(e) => setForm((p) => ({ ...p, routineCadence: e.target.value }))}
                   className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 >
                   <option value="DAILY">毎日</option>
@@ -521,7 +504,7 @@ export function TaskCreateWizard({
                 value={form.dependencyIds}
                 onChange={(e) => {
                   const selected = Array.from(e.target.selectedOptions).map(
-                    (option) => option.value
+                    (option) => option.value,
                   );
                   setForm((p) => ({ ...p, dependencyIds: selected }));
                 }}

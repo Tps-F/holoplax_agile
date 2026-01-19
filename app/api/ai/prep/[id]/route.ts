@@ -1,5 +1,5 @@
-import { withApiHandler } from "../../../../../lib/api-handler";
 import { requireWorkspaceAuth } from "../../../../../lib/api-guards";
+import { withApiHandler } from "../../../../../lib/api-handler";
 import { ok } from "../../../../../lib/api-response";
 import { logAudit } from "../../../../../lib/audit";
 import { AiPrepActionSchema } from "../../../../../lib/contracts/ai";
@@ -11,10 +11,7 @@ const buildAppendix = (type: string, prepId: string, output: string) =>
   `\n\n---\nAI下準備(${type}:${prepId})\n${output}`;
 const errors = createDomainErrors("AI");
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApiHandler(
     {
       logLabel: "PATCH /api/ai/prep/[id]",

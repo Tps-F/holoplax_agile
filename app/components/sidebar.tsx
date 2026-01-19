@@ -1,7 +1,6 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   Inbox,
@@ -11,9 +10,10 @@ import {
   Users,
   Zap,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { useSession } from "next-auth/react";
+import Image from "next/image";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { memo, useEffect } from "react";
 import { useWorkspaceStore } from "../../lib/stores/workspace-store";
 
@@ -32,36 +32,88 @@ const navSections: {
   {
     heading: "タスク管理",
     items: [
-      { label: "レビュー", href: "/review", icon: LayoutDashboard, tooltip: "ベロシティや完了タスクを振り返る" },
-      { label: "バックログ", href: "/backlog", icon: Inbox, tooltip: "TODOを整理して次に着手する候補を決める" },
-      { label: "スプリント", href: "/sprint", icon: KanbanSquare, tooltip: "今週のスプリントと容量管理" },
-      { label: "カンバン", href: "/kanban", icon: KanbanSquare, tooltip: "ステータスをドラッグして進捗を動かす" },
+      {
+        label: "レビュー",
+        href: "/review",
+        icon: LayoutDashboard,
+        tooltip: "ベロシティや完了タスクを振り返る",
+      },
+      {
+        label: "バックログ",
+        href: "/backlog",
+        icon: Inbox,
+        tooltip: "TODOを整理して次に着手する候補を決める",
+      },
+      {
+        label: "スプリント",
+        href: "/sprint",
+        icon: KanbanSquare,
+        tooltip: "今週のスプリントと容量管理",
+      },
+      {
+        label: "カンバン",
+        href: "/kanban",
+        icon: KanbanSquare,
+        tooltip: "ステータスをドラッグして進捗を動かす",
+      },
     ],
   },
   {
     heading: "ワークスペースと分析",
     items: [
-      { label: "ワークスペース", href: "/workspaces", icon: Users, tooltip: "参加中ワークスペースを管理" },
-      { label: "ベロシティ", href: "/velocity", icon: BarChart3, tooltip: "過去スプリントのベロシティを確認" },
+      {
+        label: "ワークスペース",
+        href: "/workspaces",
+        icon: Users,
+        tooltip: "参加中ワークスペースを管理",
+      },
+      {
+        label: "ベロシティ",
+        href: "/velocity",
+        icon: BarChart3,
+        tooltip: "過去スプリントのベロシティを確認",
+      },
     ],
   },
   {
     heading: "自動化",
     items: [
-      { label: "自動化", href: "/automation", icon: Zap, tooltip: "スコアに応じた自動化ポリシーを見る" },
+      {
+        label: "自動化",
+        href: "/automation",
+        icon: Zap,
+        tooltip: "スコアに応じた自動化ポリシーを見る",
+      },
     ],
   },
   {
     heading: "設定",
     items: [
       { label: "設定", href: "/settings", icon: Settings, tooltip: "個人設定や認証状態を確認" },
-      { label: "ユーザー管理", href: "/admin/users", icon: Users, tooltip: "管理者向けにユーザーを管理", adminOnly: true },
-      { label: "監査ログ", href: "/admin/audit", icon: BarChart3, tooltip: "アクション履歴を確認", adminOnly: true },
-      { label: "AI設定", href: "/admin/ai", icon: Zap, tooltip: "AI接続/モデル設定", adminOnly: true },
+      {
+        label: "ユーザー管理",
+        href: "/admin/users",
+        icon: Users,
+        tooltip: "管理者向けにユーザーを管理",
+        adminOnly: true,
+      },
+      {
+        label: "監査ログ",
+        href: "/admin/audit",
+        icon: BarChart3,
+        tooltip: "アクション履歴を確認",
+        adminOnly: true,
+      },
+      {
+        label: "AI設定",
+        href: "/admin/ai",
+        icon: Zap,
+        tooltip: "AI接続/モデル設定",
+        adminOnly: true,
+      },
     ],
   },
 ];
-
 
 const NavigationLinks = memo(function NavigationLinks({
   pathname,
@@ -73,7 +125,10 @@ const NavigationLinks = memo(function NavigationLinks({
   return (
     <nav className="mt-4 flex flex-col gap-1">
       {navSections.map((section) => (
-        <div key={section.heading} className="space-y-1 border-b border-slate-200 pb-3 last:border-none last:pb-0">
+        <div
+          key={section.heading}
+          className="space-y-1 border-b border-slate-200 pb-3 last:border-none last:pb-0"
+        >
           <div className="text-[11px] uppercase tracking-[0.3em] text-slate-500">
             {section.heading}
           </div>
@@ -85,10 +140,11 @@ const NavigationLinks = memo(function NavigationLinks({
                   key={item.label}
                   href={item.href}
                   title={item.tooltip}
-                  className={`flex items-center gap-2 border px-3 py-2 text-sm transition hover:border-[#2323eb]/40 hover:bg-[#2323eb]/10 hover:text-[#2323eb] ${pathname === item.href
-                    ? "border-[#2323eb]/40 bg-[#2323eb]/10 text-[#2323eb]"
-                    : "border-transparent text-slate-700"
-                    }`}
+                  className={`flex items-center gap-2 border px-3 py-2 text-sm transition hover:border-[#2323eb]/40 hover:bg-[#2323eb]/10 hover:text-[#2323eb] ${
+                    pathname === item.href
+                      ? "border-[#2323eb]/40 bg-[#2323eb]/10 text-[#2323eb]"
+                      : "border-transparent text-slate-700"
+                  }`}
                 >
                   <item.icon size={16} />
                   <span>{item.label}</span>
@@ -115,9 +171,7 @@ const AccountSection = memo(function AccountSection({
       ) : session?.user ? (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
-              Account
-            </div>
+            <div className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Account</div>
             <Link
               href="/settings#account"
               className="text-slate-400 transition hover:text-[#2323eb]"
@@ -161,7 +215,6 @@ const AccountSection = memo(function AccountSection({
   );
 });
 
-
 function WorkspaceSelector() {
   const router = useRouter();
   const { data: session } = useSession();
@@ -182,9 +235,7 @@ function WorkspaceSelector() {
 
   return (
     <div className="mt-4 border-b border-slate-200 pb-4">
-      <div className="mb-2 text-[11px] uppercase tracking-[0.22em] text-slate-500">
-        Workspace
-      </div>
+      <div className="mb-2 text-[11px] uppercase tracking-[0.22em] text-slate-500">Workspace</div>
       {loading ? (
         <div className="text-xs text-slate-500">読み込み中...</div>
       ) : workspaces.length > 0 ? (
@@ -243,10 +294,7 @@ export function Sidebar() {
           />
         </div>
         <WorkspaceSelector />
-        <NavigationLinks
-          pathname={pathname}
-          isAdmin={session?.user?.role === "ADMIN"}
-        />
+        <NavigationLinks pathname={pathname} isAdmin={session?.user?.role === "ADMIN"} />
         <AccountSection session={session} status={status} />
       </aside>
     </>

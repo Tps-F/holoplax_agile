@@ -3,8 +3,17 @@
 import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  SEVERITY,
+  SEVERITY_LABELS,
+  type Severity,
+  type SprintDTO,
+  TASK_STATUS,
+  TASK_TYPE,
+  type TaskDTO,
+  type TaskType,
+} from "../../lib/types";
 import { useWorkspaceId } from "../components/use-workspace-id";
-import { SprintDTO, TASK_STATUS, TASK_TYPE, TaskDTO, TaskType, SEVERITY, SEVERITY_LABELS, Severity } from "../../lib/types";
 
 const storyPoints = [1, 2, 3, 5, 8, 13, 21, 34];
 type MemberRow = {
@@ -32,9 +41,8 @@ const checklistFromText = (text: string) =>
       done: false,
     }));
 
-const checklistToText = (
-  checklist?: { id: string; text: string; done: boolean }[] | null,
-) => (checklist ?? []).map((item) => item.text).join("\n");
+const checklistToText = (checklist?: { id: string; text: string; done: boolean }[] | null) =>
+  (checklist ?? []).map((item) => item.text).join("\n");
 
 export default function SprintPage() {
   const capacity = 24;
@@ -348,9 +356,7 @@ export default function SprintPage() {
       <header className="border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Sprint
-            </p>
+            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Sprint</p>
             <h1 className="text-3xl font-semibold text-slate-900">スプリント</h1>
             <p className="text-sm text-slate-600">
               キャパはポイントベース（例: 24pt）。バックログから選んでコミットするモック。
@@ -390,9 +396,7 @@ export default function SprintPage() {
         </div>
         {sprint ? (
           <div className="mt-3 flex flex-wrap gap-2 text-xs text-slate-600">
-            <span className="border border-slate-200 bg-slate-50 px-2 py-1">
-              {sprint.name}
-            </span>
+            <span className="border border-slate-200 bg-slate-50 px-2 py-1">{sprint.name}</span>
             <span className="border border-slate-200 bg-slate-50 px-2 py-1">
               開始: {sprint.startedAt ? new Date(sprint.startedAt).toLocaleDateString() : "-"}
             </span>
@@ -454,9 +458,7 @@ export default function SprintPage() {
             <input
               type="date"
               value={sprintForm.plannedEndAt}
-              onChange={(e) =>
-                setSprintForm((p) => ({ ...p, plannedEndAt: e.target.value }))
-              }
+              onChange={(e) => setSprintForm((p) => ({ ...p, plannedEndAt: e.target.value }))}
               className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
             />
           </label>
@@ -485,17 +487,13 @@ export default function SprintPage() {
           />
           <input
             value={newItem.definitionOfDone}
-            onChange={(e) =>
-              setNewItem((p) => ({ ...p, definitionOfDone: e.target.value }))
-            }
+            onChange={(e) => setNewItem((p) => ({ ...p, definitionOfDone: e.target.value }))}
             placeholder="完了条件（DoD）"
             className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
           />
           <textarea
             value={newItem.checklistText}
-            onChange={(e) =>
-              setNewItem((p) => ({ ...p, checklistText: e.target.value }))
-            }
+            onChange={(e) => setNewItem((p) => ({ ...p, checklistText: e.target.value }))}
             placeholder="チェックリスト（1行1項目）"
             rows={3}
             className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
@@ -505,9 +503,7 @@ export default function SprintPage() {
               ポイント
               <select
                 value={newItem.points}
-                onChange={(e) =>
-                  setNewItem((p) => ({ ...p, points: Number(e.target.value) || 1 }))
-                }
+                onChange={(e) => setNewItem((p) => ({ ...p, points: Number(e.target.value) || 1 }))}
                 className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
               >
                 {storyPoints.map((pt) => (
@@ -605,15 +601,14 @@ export default function SprintPage() {
                   ) : null}
                   {item.dependencies && item.dependencies.length > 0 ? (
                     <p
-                      className={`mt-1 text-xs ${isBlocked(item) ? "text-amber-700" : "text-slate-500"
-                        }`}
+                      className={`mt-1 text-xs ${
+                        isBlocked(item) ? "text-amber-700" : "text-slate-500"
+                      }`}
                     >
                       依存:{" "}
                       {item.dependencies
                         .map((dep) =>
-                          dep.status === TASK_STATUS.DONE
-                            ? dep.title
-                            : `${dep.title}*`,
+                          dep.status === TASK_STATUS.DONE ? dep.title : `${dep.title}*`,
                         )
                         .join(", ")}
                     </p>
@@ -740,9 +735,7 @@ export default function SprintPage() {
                 <span className="text-slate-800">{item.name}</span>
                 <span>{item.status}</span>
                 <span>{item.capacityPoints} pt</span>
-                <span>
-                  {(item as { completedPoints?: number }).completedPoints ?? 0} pt
-                </span>
+                <span>{(item as { completedPoints?: number }).completedPoints ?? 0} pt</span>
                 <span className="text-[11px] text-slate-500">
                   {item.startedAt ? new Date(item.startedAt).toLocaleDateString() : "-"}
                 </span>
@@ -782,17 +775,13 @@ export default function SprintPage() {
               />
               <input
                 value={editForm.definitionOfDone}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, definitionOfDone: e.target.value }))
-                }
+                onChange={(e) => setEditForm((p) => ({ ...p, definitionOfDone: e.target.value }))}
                 placeholder="完了条件（DoD）"
                 className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
               />
               <textarea
                 value={editForm.checklistText}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, checklistText: e.target.value }))
-                }
+                onChange={(e) => setEditForm((p) => ({ ...p, checklistText: e.target.value }))}
                 placeholder="チェックリスト（1行1項目）"
                 rows={3}
                 className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
@@ -818,11 +807,15 @@ export default function SprintPage() {
                   緊急度
                   <select
                     value={editForm.urgency}
-                    onChange={(e) => setEditForm((p) => ({ ...p, urgency: e.target.value as Severity }))}
+                    onChange={(e) =>
+                      setEditForm((p) => ({ ...p, urgency: e.target.value as Severity }))
+                    }
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   >
                     {[SEVERITY.LOW, SEVERITY.MEDIUM, SEVERITY.HIGH].map((v) => (
-                      <option key={v} value={v}>{SEVERITY_LABELS[v]}</option>
+                      <option key={v} value={v}>
+                        {SEVERITY_LABELS[v]}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -830,11 +823,15 @@ export default function SprintPage() {
                   リスク
                   <select
                     value={editForm.risk}
-                    onChange={(e) => setEditForm((p) => ({ ...p, risk: e.target.value as Severity }))}
+                    onChange={(e) =>
+                      setEditForm((p) => ({ ...p, risk: e.target.value as Severity }))
+                    }
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   >
                     {[SEVERITY.LOW, SEVERITY.MEDIUM, SEVERITY.HIGH].map((v) => (
-                      <option key={v} value={v}>{SEVERITY_LABELS[v]}</option>
+                      <option key={v} value={v}>
+                        {SEVERITY_LABELS[v]}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -853,9 +850,7 @@ export default function SprintPage() {
                   担当
                   <select
                     value={editForm.assigneeId}
-                    onChange={(e) =>
-                      setEditForm((p) => ({ ...p, assigneeId: e.target.value }))
-                    }
+                    onChange={(e) => setEditForm((p) => ({ ...p, assigneeId: e.target.value }))}
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   >
                     <option value="">未設定</option>

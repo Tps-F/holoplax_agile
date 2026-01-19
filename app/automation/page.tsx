@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { AutomationSettingDTO } from "../../lib/types";
 import { useWorkspaceId } from "../components/use-workspace-id";
-import { AutomationSettingDTO } from "../../lib/types";
 
 export default function AutomationPage() {
   const { workspaceId, ready } = useWorkspaceId();
@@ -76,9 +76,7 @@ export default function AutomationPage() {
       <header className="border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Automation
-            </p>
+            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Automation</p>
             <h1 className="text-3xl font-semibold text-slate-900">自動化</h1>
             <p className="text-sm text-slate-600">
               スコアしきい値ごとの挙動を管理。低スコアはAI委任キュー、高スコアは自動分解（承認モードは環境変数

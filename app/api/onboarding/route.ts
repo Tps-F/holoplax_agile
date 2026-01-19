@@ -6,7 +6,7 @@ import { logAudit } from "../../../lib/audit";
 import { OnboardingSchema } from "../../../lib/contracts/onboarding";
 import { parseBody } from "../../../lib/http/validation";
 import prisma from "../../../lib/prisma";
-import { TASK_TYPE, SEVERITY } from "../../../lib/types";
+import { SEVERITY, TASK_TYPE } from "../../../lib/types";
 
 export async function POST(request: Request) {
   return withApiHandler(

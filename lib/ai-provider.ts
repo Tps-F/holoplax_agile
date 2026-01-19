@@ -1,5 +1,5 @@
+import { type AiUsageContext, recordAiUsage } from "./ai-usage";
 import prisma from "./prisma";
-import { AiUsageContext, recordAiUsage } from "./ai-usage";
 
 export type AiProviderConfig = {
   model: string;
@@ -60,9 +60,7 @@ const normalizeBaseUrl = (baseUrl?: string | null) => {
 
 const readEnvConfig = (): AiProviderConfig | null => {
   const apiKey =
-    process.env.AI_API_KEY ??
-    process.env.LITELLM_API_KEY ??
-    process.env.OPENAI_API_KEY;
+    process.env.AI_API_KEY ?? process.env.LITELLM_API_KEY ?? process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
   return {
     model:

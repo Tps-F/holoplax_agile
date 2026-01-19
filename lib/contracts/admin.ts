@@ -2,10 +2,12 @@ import { z } from "zod";
 import { EmailSchema, PasswordSchema } from "./auth";
 
 const toStringOrEmpty = (value: unknown) => (value == null ? "" : String(value));
-const optionalBoolean = z.preprocess((value) => {
-  if (value === null || value === undefined || value === "") return undefined;
-  return value;
-}, z.coerce.boolean()).optional();
+const optionalBoolean = z
+  .preprocess((value) => {
+    if (value === null || value === undefined || value === "") return undefined;
+    return value;
+  }, z.coerce.boolean())
+  .optional();
 
 export const AdminAiUpdateSchema = z
   .object({

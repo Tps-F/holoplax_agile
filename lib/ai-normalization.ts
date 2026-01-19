@@ -1,5 +1,5 @@
 import { storyPointOptions } from "./points";
-import { SEVERITY, Severity, SEVERITY_FROM_LABEL } from "./types";
+import { SEVERITY, SEVERITY_FROM_LABEL, type Severity } from "./types";
 
 const toNumber = (value: unknown) => {
   const num = Number(value);
@@ -28,7 +28,10 @@ const toStringValue = (value: unknown) => {
 };
 
 // Maps both Japanese (低/中/高) and English (LOW/MEDIUM/HIGH) to Severity enum
-export const normalizeSeverity = (value: unknown, fallback: Severity = SEVERITY.MEDIUM): Severity => {
+export const normalizeSeverity = (
+  value: unknown,
+  fallback: Severity = SEVERITY.MEDIUM,
+): Severity => {
   const candidate = toStringValue(value).toUpperCase();
 
   // Direct enum value

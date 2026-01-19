@@ -1,12 +1,9 @@
-import { withApiHandler } from "../../../../../../lib/api-handler";
 import { requireAdmin } from "../../../../../../lib/api-guards";
+import { withApiHandler } from "../../../../../../lib/api-handler";
 import { ok } from "../../../../../../lib/api-response";
 import prisma from "../../../../../../lib/prisma";
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApiHandler(
     {
       logLabel: "GET /api/admin/users/[id]/tasks",

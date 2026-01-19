@@ -4,7 +4,11 @@ import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import { AvatarUploadSchema } from "../../../../lib/contracts/storage";
 import { parseBody } from "../../../../lib/http/validation";
-import { createAvatarUploadUrl, ensureAvatarBucket, getPublicObjectUrl } from "../../../../lib/storage";
+import {
+  createAvatarUploadUrl,
+  ensureAvatarBucket,
+  getPublicObjectUrl,
+} from "../../../../lib/storage";
 
 export async function POST(request: Request) {
   return withApiHandler(

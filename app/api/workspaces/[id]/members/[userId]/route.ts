@@ -1,12 +1,11 @@
 import { requireAuth } from "../../../../../../lib/api-auth";
-import { withApiHandler } from "../../../../../../lib/api-handler";
 import { requireWorkspaceManager } from "../../../../../../lib/api-guards";
+import { withApiHandler } from "../../../../../../lib/api-handler";
 import { ok } from "../../../../../../lib/api-response";
 import { logAudit } from "../../../../../../lib/audit";
 import { WorkspaceMemberRoleUpdateSchema } from "../../../../../../lib/contracts/workspace";
 import { parseBody } from "../../../../../../lib/http/validation";
 import prisma from "../../../../../../lib/prisma";
-
 
 export async function PATCH(
   request: Request,

@@ -1,10 +1,10 @@
-import { withApiHandler } from "../../../../lib/api-handler";
+import { generateSplitSuggestions } from "../../../../lib/ai-suggestions";
 import { requireWorkspaceAuth } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import { AiSplitSchema } from "../../../../lib/contracts/ai";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
-import { generateSplitSuggestions } from "../../../../lib/ai-suggestions";
 import prisma from "../../../../lib/prisma";
 
 const errors = createDomainErrors("AI");

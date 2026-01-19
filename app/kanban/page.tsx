@@ -1,15 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useWorkspaceId } from "../components/use-workspace-id";
 import {
+  AUTOMATION_STATE,
   TASK_STATUS,
   TASK_TYPE,
-  AUTOMATION_STATE,
-  TaskDTO,
-  TaskStatus,
-  TaskType,
+  type TaskDTO,
+  type TaskStatus,
+  type TaskType,
 } from "../../lib/types";
+import { useWorkspaceId } from "../components/use-workspace-id";
 
 type MemberRow = {
   id: string;
@@ -52,14 +52,12 @@ export default function KanbanPage() {
   const [hoverColumn, setHoverColumn] = useState<TaskStatus | null>(null);
 
   const isBlocked = useCallback(
-    (item: TaskDTO) =>
-      (item.dependencies ?? []).some((dep) => dep.status !== TASK_STATUS.DONE),
+    (item: TaskDTO) => (item.dependencies ?? []).some((dep) => dep.status !== TASK_STATUS.DONE),
     [],
   );
   const isAiTask = useCallback(
     (item: TaskDTO) =>
-      item.automationState !== undefined &&
-      item.automationState !== AUTOMATION_STATE.NONE,
+      item.automationState !== undefined && item.automationState !== AUTOMATION_STATE.NONE,
     [],
   );
 
@@ -69,9 +67,7 @@ export default function KanbanPage() {
       setItems([]);
       return;
     }
-    const res = await fetch(
-      "/api/tasks?status=BACKLOG&status=SPRINT&status=DONE&limit=400",
-    );
+    const res = await fetch("/api/tasks?status=BACKLOG&status=SPRINT&status=DONE&limit=400");
     const data = await res.json();
     setItems(data.tasks ?? []);
   }, [ready, workspaceId]);
@@ -140,9 +136,7 @@ export default function KanbanPage() {
     }
     setHoverColumn(null);
     const originalItems = [...items];
-    setItems((prev) =>
-      prev.map((item) => (item.id === draggingId ? { ...item, status } : item)),
-    );
+    setItems((prev) => prev.map((item) => (item.id === draggingId ? { ...item, status } : item)));
     setDraggingId(null);
     const res = await fetch(`/api/tasks/${draggingId}`, {
       method: "PATCH",
@@ -152,7 +146,9 @@ export default function KanbanPage() {
     if (!res.ok) {
       setItems(originalItems);
       const errorData = await res.json().catch(() => ({}));
-      const message = JSON.stringify(errorData.message || errorData.error || "移動に失敗しました。");
+      const message = JSON.stringify(
+        errorData.message || errorData.error || "移動に失敗しました。",
+      );
       if (message.includes("active sprint not found")) {
         window.alert("アクティブなスプリントがありません。スプリントを開始してください。");
       } else if (message.includes("sprint capacity exceeded")) {
@@ -190,8 +186,9 @@ export default function KanbanPage() {
             }}
             onDragLeave={() => setHoverColumn(null)}
             onDrop={() => handleDrop(col.key)}
-            className={`flex h-[70vh] min-w-0 flex-col border border-slate-200 bg-white p-4 shadow-sm ${hoverColumn === col.key ? "ring-2 ring-[#2323eb]/40" : ""
-              }`}
+            className={`flex h-[70vh] min-w-0 flex-col border border-slate-200 bg-white p-4 shadow-sm ${
+              hoverColumn === col.key ? "ring-2 ring-[#2323eb]/40" : ""
+            }`}
           >
             <div className="flex shrink-0 items-center justify-between border-b border-slate-200 pb-3">
               <div>
@@ -222,43 +219,40 @@ export default function KanbanPage() {
                     e.dataTransfer.effectAllowed = "move";
                   }}
                   onDragEnd={() => setDraggingId(null)}
-                  className={`min-w-0 break-words border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 transition ${draggingId === item.id ? "opacity-60" : ""
-                    }`}
+                  className={`min-w-0 break-words border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 transition ${
+                    draggingId === item.id ? "opacity-60" : ""
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2 overflow-hidden">
-                    <p className="break-words font-semibold text-slate-900">
-                      {item.title}
-                    </p>
+                    <p className="break-words font-semibold text-slate-900">{item.title}</p>
                     <div className="flex shrink-0 items-center gap-1">
                       <span className="shrink-0 border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
                         {taskTypeLabels[(item.type ?? TASK_TYPE.PBI) as TaskType]}
                       </span>
                       <span
-                        className={`shrink-0 border px-2 py-0.5 text-[10px] font-semibold ${isAiTask(item)
-                          ? "border-amber-200 bg-amber-50 text-amber-700"
-                          : "border-slate-200 bg-white text-slate-600"
-                          }`}
+                        className={`shrink-0 border px-2 py-0.5 text-[10px] font-semibold ${
+                          isAiTask(item)
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : "border-slate-200 bg-white text-slate-600"
+                        }`}
                       >
                         {isAiTask(item) ? "AI" : "人"}
                       </span>
                     </div>
                   </div>
                   {item.description ? (
-                    <p className="mt-1 break-words text-xs text-slate-600">
-                      {item.description}
-                    </p>
+                    <p className="mt-1 break-words text-xs text-slate-600">{item.description}</p>
                   ) : null}
                   {item.dependencies && item.dependencies.length > 0 ? (
                     <p
-                      className={`mt-1 break-words text-xs ${isBlocked(item) ? "text-amber-700" : "text-slate-500"
-                        }`}
+                      className={`mt-1 break-words text-xs ${
+                        isBlocked(item) ? "text-amber-700" : "text-slate-500"
+                      }`}
                     >
                       依存:{" "}
                       {item.dependencies
                         .map((dep) =>
-                          dep.status === TASK_STATUS.DONE
-                            ? dep.title
-                            : `${dep.title}*`,
+                          dep.status === TASK_STATUS.DONE ? dep.title : `${dep.title}*`,
                         )
                         .join(", ")}
                     </p>
@@ -281,8 +275,7 @@ export default function KanbanPage() {
                     {item.assigneeId ? (
                       <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
                         担当:{" "}
-                        {members.find((member) => member.id === item.assigneeId)?.name ??
-                          "未設定"}
+                        {members.find((member) => member.id === item.assigneeId)?.name ?? "未設定"}
                       </span>
                     ) : null}
                     {item.tags && item.tags.length > 0 ? (

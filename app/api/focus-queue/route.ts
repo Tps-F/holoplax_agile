@@ -1,5 +1,5 @@
-import { withApiHandler } from "../../../lib/api-handler";
 import { requireWorkspaceAuth } from "../../../lib/api-guards";
+import { withApiHandler } from "../../../lib/api-handler";
 import { ok } from "../../../lib/api-response";
 import prisma from "../../../lib/prisma";
 
@@ -50,7 +50,7 @@ export async function GET() {
         .sort((a, b) => b.priorityScore - a.priorityScore)
         .slice(0, 3);
 
-      const itemsPayload = scored.map((item) => ({
+      const _itemsPayload = scored.map((item) => ({
         taskId: item.taskId,
         title: item.title,
         priorityScore: item.priorityScore,

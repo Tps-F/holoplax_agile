@@ -1,6 +1,6 @@
-import { SprintStatus } from "@prisma/client";
-import { withApiHandler } from "../../../lib/api-handler";
+import type { SprintStatus } from "@prisma/client";
 import { requireWorkspaceAuth } from "../../../lib/api-guards";
+import { withApiHandler } from "../../../lib/api-handler";
 import { ok } from "../../../lib/api-response";
 import prisma from "../../../lib/prisma";
 

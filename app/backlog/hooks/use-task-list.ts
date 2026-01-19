@@ -2,10 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   TASK_STATUS,
   TASK_TYPE,
-  AUTOMATION_STATE,
-  TaskDTO,
-  TaskType,
-  TaskStatus,
+  type TaskDTO,
+  type TaskStatus,
+  type TaskType,
 } from "../../../lib/types";
 
 type MemberRow = {
@@ -25,9 +24,7 @@ export function useTaskList({ workspaceId, ready }: UseTaskListOptions) {
   const [members, setMembers] = useState<MemberRow[]>([]);
 
   const fetchTasksByStatus = useCallback(async (statuses: TaskStatus[]) => {
-    const params = statuses
-      .map((status) => `status=${encodeURIComponent(status)}`)
-      .join("&");
+    const params = statuses.map((status) => `status=${encodeURIComponent(status)}`).join("&");
     const res = await fetch(`/api/tasks?${params}&limit=200`);
     if (!res.ok) return [];
     const data = await res.json();
@@ -92,17 +89,14 @@ export function useTaskList({ workspaceId, ready }: UseTaskListOptions) {
   );
 
   const isBlocked = useCallback(
-    (item: TaskDTO) =>
-      (item.dependencies ?? []).some((dep) => dep.status !== TASK_STATUS.DONE),
+    (item: TaskDTO) => (item.dependencies ?? []).some((dep) => dep.status !== TASK_STATUS.DONE),
     [],
   );
 
   // Task operations
   const moveToSprint = async (id: string) => {
     setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, status: TASK_STATUS.SPRINT } : item,
-      ),
+      prev.map((item) => (item.id === id ? { ...item, status: TASK_STATUS.SPRINT } : item)),
     );
     const res = await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
@@ -118,9 +112,7 @@ export function useTaskList({ workspaceId, ready }: UseTaskListOptions) {
 
   const moveToBacklog = async (id: string) => {
     setItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, status: TASK_STATUS.BACKLOG } : item,
-      ),
+      prev.map((item) => (item.id === id ? { ...item, status: TASK_STATUS.BACKLOG } : item)),
     );
     const res = await fetch(`/api/tasks/${id}`, {
       method: "PATCH",
@@ -147,9 +139,7 @@ export function useTaskList({ workspaceId, ready }: UseTaskListOptions) {
       item.id === checklistId ? { ...item, done: !item.done } : item,
     );
     setItems((prev) =>
-      prev.map((item) =>
-        item.id === taskId ? { ...item, checklist: nextChecklist } : item,
-      ),
+      prev.map((item) => (item.id === taskId ? { ...item, checklist: nextChecklist } : item)),
     );
     await fetch(`/api/tasks/${taskId}`, {
       method: "PATCH",

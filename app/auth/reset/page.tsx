@@ -13,9 +13,7 @@ function ResetPasswordForm() {
   return (
     <div className="border border-slate-200 bg-white p-8 shadow-sm">
       <h1 className="text-2xl font-semibold text-slate-900">新しいパスワード</h1>
-      <p className="mt-2 text-sm text-slate-600">
-        新しいパスワードを入力してください。
-      </p>
+      <p className="mt-2 text-sm text-slate-600">新しいパスワードを入力してください。</p>
       <form
         onSubmit={async (event) => {
           event.preventDefault();

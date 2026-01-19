@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
 import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
@@ -40,12 +40,8 @@ export async function GET() {
 
       const cookieStore = await cookies();
       const preferred = cookieStore.get("workspaceId")?.value ?? null;
-      const hasPreferred = preferred
-        ? memberships.some((m) => m.workspaceId === preferred)
-        : false;
-      const currentWorkspaceId = hasPreferred
-        ? preferred
-        : workspaces[0]?.id ?? null;
+      const hasPreferred = preferred ? memberships.some((m) => m.workspaceId === preferred) : false;
+      const currentWorkspaceId = hasPreferred ? preferred : (workspaces[0]?.id ?? null);
 
       const response = ok({ currentWorkspaceId, workspaces });
       if (currentWorkspaceId && currentWorkspaceId !== preferred) {

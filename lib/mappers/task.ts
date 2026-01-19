@@ -1,4 +1,4 @@
-import { TaskStatus, AutomationState, TASK_STATUS } from "../types";
+import { type AutomationState, TASK_STATUS, type TaskStatus } from "../types";
 
 type DepNode = {
   dependsOnId: string;

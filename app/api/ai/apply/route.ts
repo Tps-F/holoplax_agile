@@ -1,15 +1,12 @@
-import { withApiHandler } from "../../../../lib/api-handler";
+import { normalizePriorityLevel, normalizeStoryPoint } from "../../../../lib/ai-normalization";
 import { requireWorkspaceAuth } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
+import { logAudit } from "../../../../lib/audit";
 import { AiApplySchema } from "../../../../lib/contracts/ai";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
-import { logAudit } from "../../../../lib/audit";
 import prisma from "../../../../lib/prisma";
-import {
-  normalizePriorityLevel,
-  normalizeStoryPoint,
-} from "../../../../lib/ai-normalization";
 
 const errors = createDomainErrors("AI");
 

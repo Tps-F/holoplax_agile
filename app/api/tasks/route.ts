@@ -1,18 +1,18 @@
-import { Prisma, TaskStatus, TaskType } from "@prisma/client";
+import { Prisma, type TaskStatus, type TaskType } from "@prisma/client";
 import { randomUUID } from "crypto";
-import { withApiHandler } from "../../../lib/api-handler";
-import { requireWorkspaceAuth } from "../../../lib/api-guards";
-import { ok } from "../../../lib/api-response";
-import { applyAutomationForTask } from "../../../lib/automation";
 import { normalizeSeverity } from "../../../lib/ai-normalization";
-import { badPoints } from "../../../lib/points";
+import { requireWorkspaceAuth } from "../../../lib/api-guards";
+import { withApiHandler } from "../../../lib/api-handler";
+import { ok } from "../../../lib/api-response";
 import { logAudit } from "../../../lib/audit";
+import { applyAutomationForTask } from "../../../lib/automation";
 import { TaskCreateSchema } from "../../../lib/contracts/task";
 import { createDomainErrors } from "../../../lib/http/errors";
 import { parseBody } from "../../../lib/http/validation";
-import prisma from "../../../lib/prisma";
-import { TASK_STATUS, TASK_TYPE, SEVERITY } from "../../../lib/types";
 import { mapTaskWithDependencies } from "../../../lib/mappers/task";
+import { badPoints } from "../../../lib/points";
+import prisma from "../../../lib/prisma";
+import { TASK_STATUS, TASK_TYPE } from "../../../lib/types";
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>
   Object.values(TASK_STATUS).includes(value as TaskStatus);
@@ -164,9 +164,9 @@ export async function POST(request: Request) {
         : [];
       const allowedDependencies = dependencyList.length
         ? await prisma.task.findMany({
-          where: { id: { in: dependencyList }, workspaceId },
-          select: { id: true, title: true, status: true },
-        })
+            where: { id: { in: dependencyList }, workspaceId },
+            select: { id: true, title: true, status: true },
+          })
         : [];
       const statusValue = isTaskStatus(status) ? status : TASK_STATUS.BACKLOG;
       const typeValue = isTaskType(type) ? type : TASK_TYPE.PBI;
@@ -177,9 +177,9 @@ export async function POST(request: Request) {
       const parentCandidate = parentId ? String(parentId) : null;
       const parent = parentCandidate
         ? await prisma.task.findFirst({
-          where: { id: parentCandidate, workspaceId },
-          select: { id: true },
-        })
+            where: { id: parentCandidate, workspaceId },
+            select: { id: true },
+          })
         : null;
       if (
         statusValue !== TASK_STATUS.BACKLOG &&
@@ -190,10 +190,10 @@ export async function POST(request: Request) {
       const activeSprint =
         statusValue === TASK_STATUS.SPRINT
           ? await prisma.sprint.findFirst({
-            where: { workspaceId, status: "ACTIVE" },
-            orderBy: { startedAt: "desc" },
-            select: { id: true, capacityPoints: true },
-          })
+              where: { workspaceId, status: "ACTIVE" },
+              orderBy: { startedAt: "desc" },
+              select: { id: true, capacityPoints: true },
+            })
           : null;
       if (statusValue === TASK_STATUS.SPRINT && activeSprint) {
         const current = await prisma.task.aggregate({
@@ -229,7 +229,9 @@ export async function POST(request: Request) {
         routineCadence === "DAILY" || routineCadence === "WEEKLY" ? routineCadence : null;
       if (typeValue === TASK_TYPE.ROUTINE && cadenceValue) {
         const baseDate = dueDate ? new Date(dueDate) : new Date();
-        const nextAt = routineNextAt ? new Date(routineNextAt) : nextRoutineAt(cadenceValue, baseDate);
+        const nextAt = routineNextAt
+          ? new Date(routineNextAt)
+          : nextRoutineAt(cadenceValue, baseDate);
         await prisma.routineRule.create({
           data: {
             taskId: task.id,

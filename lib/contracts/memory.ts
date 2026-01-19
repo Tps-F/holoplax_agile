@@ -20,15 +20,19 @@ export const MemoryClaimDeleteSchema = z
 export const MemoryQuestionCreateSchema = z
   .object({
     typeId: nonEmptyString("typeId is required"),
-    confidence: z.preprocess((value) => {
-      if (value === null || value === undefined || value === "") return undefined;
-      return Number(value);
-    }, z.number()).optional(),
+    confidence: z
+      .preprocess((value) => {
+        if (value === null || value === undefined || value === "") return undefined;
+        return Number(value);
+      }, z.number())
+      .optional(),
     valueStr: z.preprocess(toStringOrEmpty, z.string()).optional().nullable(),
-    valueNum: z.preprocess((value) => {
-      if (value === null || value === undefined || value === "") return null;
-      return Number(value);
-    }, z.number().nullable()).optional(),
+    valueNum: z
+      .preprocess((value) => {
+        if (value === null || value === undefined || value === "") return null;
+        return Number(value);
+      }, z.number().nullable())
+      .optional(),
     valueBool: z.boolean().optional().nullable(),
     valueJson: z.unknown().optional().nullable(),
   })

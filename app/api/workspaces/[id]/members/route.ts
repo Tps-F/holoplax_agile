@@ -1,6 +1,6 @@
 import { requireAuth } from "../../../../../lib/api-auth";
-import { withApiHandler } from "../../../../../lib/api-handler";
 import { requireWorkspaceManager, requireWorkspaceMember } from "../../../../../lib/api-guards";
+import { withApiHandler } from "../../../../../lib/api-handler";
 import { ok } from "../../../../../lib/api-response";
 import { logAudit } from "../../../../../lib/audit";
 import { WorkspaceMemberAddSchema } from "../../../../../lib/contracts/workspace";
@@ -10,10 +10,7 @@ import prisma from "../../../../../lib/prisma";
 
 const errors = createDomainErrors("WORKSPACE");
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApiHandler(
     {
       logLabel: "GET /api/workspaces/[id]/members",
@@ -44,10 +41,7 @@ export async function GET(
   );
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApiHandler(
     {
       logLabel: "POST /api/workspaces/[id]/members",

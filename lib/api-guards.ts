@@ -29,23 +29,19 @@ const forbid = (domain: string, message = "forbidden") => {
 };
 
 export async function requireWorkspaceAuth(
-  options: WorkspaceAuthOptionsRequired
+  options: WorkspaceAuthOptionsRequired,
 ): Promise<WorkspaceAuthResultRequired>;
 export async function requireWorkspaceAuth(
-  options?: WorkspaceAuthOptionsOptional
+  options?: WorkspaceAuthOptionsOptional,
 ): Promise<WorkspaceAuthResultOptional>;
 export async function requireWorkspaceAuth(
-  options: WorkspaceAuthOptions = {}
+  options: WorkspaceAuthOptions = {},
 ): Promise<WorkspaceAuthResultRequired | WorkspaceAuthResultOptional> {
   const auth = await requireAuth();
   const workspaceId = await resolveWorkspaceId(auth.userId);
   if (options.requireWorkspace && !workspaceId) {
     const domain = options.domain ?? "WORKSPACE";
-    throw new AppError(
-      `${domain}_BAD_REQUEST`,
-      options.message ?? "workspace is required",
-      400,
-    );
+    throw new AppError(`${domain}_BAD_REQUEST`, options.message ?? "workspace is required", 400);
   }
   return { ...auth, workspaceId } as WorkspaceAuthResultRequired | WorkspaceAuthResultOptional;
 }
@@ -74,11 +70,8 @@ const requireWorkspaceRole = async (
   return membership;
 };
 
-export const requireWorkspaceMember = async (
-  domain: string,
-  workspaceId: string,
-  userId: string,
-) => requireWorkspaceRole(domain, workspaceId, userId, ["owner", "admin", "member"]);
+export const requireWorkspaceMember = async (domain: string, workspaceId: string, userId: string) =>
+  requireWorkspaceRole(domain, workspaceId, userId, ["owner", "admin", "member"]);
 
 export const requireWorkspaceManager = async (
   domain: string,

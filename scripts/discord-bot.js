@@ -2,13 +2,7 @@
 // Usage: node scripts/discord-bot.js (requires env vars below and discord.js installed)
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const {
-  Client,
-  GatewayIntentBits,
-  REST,
-  Routes,
-  SlashCommandBuilder,
-} = require("discord.js");
+const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
 
 const {
   DISCORD_BOT_TOKEN,
@@ -30,10 +24,7 @@ const commands = [
     .setName("holotask")
     .setDescription("Holoplax にタスクを追加します")
     .addStringOption((option) =>
-      option
-        .setName("text")
-        .setDescription("タイトル | 説明 | ポイント(任意)")
-        .setRequired(true),
+      option.setName("text").setDescription("タイトル | 説明 | ポイント(任意)").setRequired(true),
     )
     .toJSON(),
 ];

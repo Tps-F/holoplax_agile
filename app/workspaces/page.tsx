@@ -64,9 +64,7 @@ export default function WorkspacesPage() {
       <header className="border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Workspace
-            </p>
+            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Workspace</p>
             <h1 className="text-3xl font-semibold text-slate-900">ワークスペース</h1>
             <p className="text-sm text-slate-600">チーム共有と権限管理を行います。</p>
           </div>
@@ -84,10 +82,11 @@ export default function WorkspacesPage() {
                   setSelectedId(workspace.id);
                   await useWorkspaceStore.getState().setWorkspaceId(workspace.id);
                 }}
-                className={`border px-3 py-2 text-left text-sm transition ${selectedId === workspace.id
-                  ? "border-[#2323eb]/40 bg-[#2323eb]/10 text-[#2323eb]"
-                  : "border-slate-200 text-slate-700 hover:border-[#2323eb]/40 hover:bg-[#2323eb]/5"
-                  }`}
+                className={`border px-3 py-2 text-left text-sm transition ${
+                  selectedId === workspace.id
+                    ? "border-[#2323eb]/40 bg-[#2323eb]/10 text-[#2323eb]"
+                    : "border-slate-200 text-slate-700 hover:border-[#2323eb]/40 hover:bg-[#2323eb]/5"
+                }`}
               >
                 <div className="flex items-center justify-between">
                   <span className="font-semibold">{workspace.name}</span>
@@ -153,9 +152,7 @@ export default function WorkspacesPage() {
                     className="grid grid-cols-[1.1fr_1fr_0.6fr_0.6fr] items-center gap-3 border border-slate-200 px-3 py-2 text-sm text-slate-700"
                   >
                     <span className="truncate">{member.name ?? "Unnamed"}</span>
-                    <span className="truncate text-xs text-slate-500">
-                      {member.email ?? "-"}
-                    </span>
+                    <span className="truncate text-xs text-slate-500">{member.email ?? "-"}</span>
                     <select
                       value={member.role}
                       onChange={async (event) => {

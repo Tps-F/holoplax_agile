@@ -58,9 +58,7 @@ export default function AdminUsersPage() {
       <header className="border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Admin
-            </p>
+            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Admin</p>
             <h1 className="text-3xl font-semibold text-slate-900">ユーザー管理</h1>
             <p className="text-sm text-slate-600">管理者のみ閲覧できます。</p>
           </div>
@@ -77,9 +75,7 @@ export default function AdminUsersPage() {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">ユーザー作成</h2>
-            <p className="text-sm text-slate-600">
-              管理者が新規ユーザーを登録できます。
-            </p>
+            <p className="text-sm text-slate-600">管理者が新規ユーザーを登録できます。</p>
           </div>
         </div>
         {createError ? (
@@ -190,22 +186,17 @@ export default function AdminUsersPage() {
             {users.map((user) => {
               const tasks = tasksByUser[user.id];
               const isOpen = openUserId === user.id;
-              const groupedTasks = tasks?.reduce<Record<string, TaskRow[]>>(
-                (acc, task) => {
-                  const key = task.workspaceName ?? "未所属";
-                  if (!acc[key]) acc[key] = [];
-                  acc[key].push(task);
-                  return acc;
-                },
-                {},
-              );
+              const groupedTasks = tasks?.reduce<Record<string, TaskRow[]>>((acc, task) => {
+                const key = task.workspaceName ?? "未所属";
+                if (!acc[key]) acc[key] = [];
+                acc[key].push(task);
+                return acc;
+              }, {});
               return (
                 <div key={user.id} className="grid gap-2">
                   <div className="grid grid-cols-[1.2fr_1fr_0.7fr_0.8fr_0.8fr_0.9fr_0.7fr] items-center gap-3 border border-slate-200 px-3 py-2 text-sm text-slate-800">
                     <span className="truncate">{user.name ?? "Unnamed"}</span>
-                    <span className="truncate text-slate-600">
-                      {user.email ?? "-"}
-                    </span>
+                    <span className="truncate text-slate-600">{user.email ?? "-"}</span>
                     <div className="text-xs uppercase text-slate-500">
                       <select
                         value={user.role}
@@ -234,10 +225,11 @@ export default function AdminUsersPage() {
                           });
                           fetchUsers();
                         }}
-                        className={`border px-2 py-1 text-[11px] ${user.disabledAt
-                          ? "border-red-200 bg-red-50 text-red-700"
-                          : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                          }`}
+                        className={`border px-2 py-1 text-[11px] ${
+                          user.disabledAt
+                            ? "border-red-200 bg-red-50 text-red-700"
+                            : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                        }`}
                       >
                         {user.disabledAt ? "停止中" : "有効"}
                       </button>
@@ -277,9 +269,7 @@ export default function AdminUsersPage() {
                         setTaskError(null);
                         setTaskLoadingId(user.id);
                         try {
-                          const res = await fetch(
-                            `/api/admin/users/${user.id}/tasks`,
-                          );
+                          const res = await fetch(`/api/admin/users/${user.id}/tasks`);
                           if (!res.ok) {
                             setTaskError("タスク取得に失敗しました。");
                             return;
@@ -304,52 +294,43 @@ export default function AdminUsersPage() {
                         <p className="text-xs text-slate-500">読み込み中...</p>
                       ) : taskError ? (
                         <p className="text-xs text-red-600">{taskError}</p>
-                      ) : groupedTasks &&
-                        Object.keys(groupedTasks).length > 0 ? (
+                      ) : groupedTasks && Object.keys(groupedTasks).length > 0 ? (
                         <div className="grid gap-4">
-                          {Object.entries(groupedTasks).map(
-                            ([workspaceName, workspaceTasks]) => (
-                              <div
-                                key={workspaceName}
-                                className="border border-slate-200 bg-white p-4"
-                              >
-                                <div className="mb-3 flex items-center justify-between">
-                                  <span className="text-sm font-semibold text-slate-800">
-                                    {workspaceName}
-                                  </span>
-                                  <span className="text-xs text-slate-500">
-                                    {workspaceTasks.length}件
-                                  </span>
-                                </div>
-                                <div className="grid gap-2 text-xs">
-                                  <div className="grid grid-cols-[1.6fr_0.6fr_0.4fr] gap-3 text-[11px] uppercase text-slate-500">
-                                    <span>タイトル</span>
-                                    <span>状態</span>
-                                    <span>Pt</span>
-                                  </div>
-                                  {workspaceTasks.map((task) => (
-                                    <div
-                                      key={task.id}
-                                      className="grid grid-cols-[1.6fr_0.6fr_0.4fr] items-center gap-3 text-xs text-slate-600"
-                                    >
-                                      <span className="truncate text-slate-800">
-                                        {task.title}
-                                      </span>
-                                      <span className="uppercase">
-                                        {task.status}
-                                      </span>
-                                      <span>{task.points}</span>
-                                    </div>
-                                  ))}
-                                </div>
+                          {Object.entries(groupedTasks).map(([workspaceName, workspaceTasks]) => (
+                            <div
+                              key={workspaceName}
+                              className="border border-slate-200 bg-white p-4"
+                            >
+                              <div className="mb-3 flex items-center justify-between">
+                                <span className="text-sm font-semibold text-slate-800">
+                                  {workspaceName}
+                                </span>
+                                <span className="text-xs text-slate-500">
+                                  {workspaceTasks.length}件
+                                </span>
                               </div>
-                            ),
-                          )}
+                              <div className="grid gap-2 text-xs">
+                                <div className="grid grid-cols-[1.6fr_0.6fr_0.4fr] gap-3 text-[11px] uppercase text-slate-500">
+                                  <span>タイトル</span>
+                                  <span>状態</span>
+                                  <span>Pt</span>
+                                </div>
+                                {workspaceTasks.map((task) => (
+                                  <div
+                                    key={task.id}
+                                    className="grid grid-cols-[1.6fr_0.6fr_0.4fr] items-center gap-3 text-xs text-slate-600"
+                                  >
+                                    <span className="truncate text-slate-800">{task.title}</span>
+                                    <span className="uppercase">{task.status}</span>
+                                    <span>{task.points}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       ) : (
-                        <p className="text-xs text-slate-500">
-                          タスクがありません。
-                        </p>
+                        <p className="text-xs text-slate-500">タスクがありません。</p>
                       )}
                     </div>
                   ) : null}

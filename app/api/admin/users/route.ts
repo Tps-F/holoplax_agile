@@ -1,13 +1,13 @@
+import type { UserRole } from "@prisma/client";
 import { hash } from "bcryptjs";
-import { withApiHandler } from "../../../../lib/api-handler";
 import { requireAdmin } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import { logAudit } from "../../../../lib/audit";
 import { AdminUserCreateSchema } from "../../../../lib/contracts/admin";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { UserRole } from "@prisma/client";
 
 const errors = createDomainErrors("ADMIN");
 
@@ -86,7 +86,14 @@ export async function POST(request: Request) {
           emailVerified: new Date(),
           password: { create: { hash: hashed } },
         },
-        select: { id: true, name: true, email: true, role: true, disabledAt: true, createdAt: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          disabledAt: true,
+          createdAt: true,
+        },
       });
 
       await logAudit({

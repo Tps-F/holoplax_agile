@@ -75,13 +75,7 @@ const sortBuckets = <T extends UsageBucket>(entries: Array<[string, T]>) => {
   });
 };
 
-const TrendChart = ({
-  title,
-  data,
-}: {
-  title: string;
-  data: TrendPoint[];
-}) => {
+const TrendChart = ({ title, data }: { title: string; data: TrendPoint[] }) => {
   const hasCost = data.some((item) => item.totalCostUsd > 0);
   const values = data.map((item) => (hasCost ? item.totalCostUsd : item.totalTokens));
   const maxValue = Math.max(1, ...values);
@@ -109,7 +103,9 @@ const TrendChart = ({
                   />
                 </div>
                 <span className="text-[11px] text-slate-500">
-                  {hasCost ? formatUsd(item.totalCostUsd) : `${item.totalTokens.toLocaleString()} tok`}
+                  {hasCost
+                    ? formatUsd(item.totalCostUsd)
+                    : `${item.totalTokens.toLocaleString()} tok`}
                 </span>
               </div>
             );
@@ -185,9 +181,7 @@ export default function AdminAuditPage() {
           <div>
             <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Admin</p>
             <h1 className="text-3xl font-semibold text-slate-900">監査ログ</h1>
-            <p className="text-sm text-slate-600">
-              管理者操作とAI使用履歴を記録します。
-            </p>
+            <p className="text-sm text-slate-600">管理者操作とAI使用履歴を記録します。</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2 border border-slate-200 bg-white p-1 text-xs text-slate-700">
@@ -214,12 +208,14 @@ export default function AdminAuditPage() {
             </div>
             {filter === "ai" ? (
               <div className="flex items-center gap-2 border border-slate-200 bg-white p-1 text-xs text-slate-700">
-                {([
-                  ["7d", "7日"],
-                  ["30d", "30日"],
-                  ["90d", "90日"],
-                  ["custom", "カスタム"],
-                ] as const).map(([value, label]) => (
+                {(
+                  [
+                    ["7d", "7日"],
+                    ["30d", "30日"],
+                    ["90d", "90日"],
+                    ["custom", "カスタム"],
+                  ] as const
+                ).map(([value, label]) => (
                   <button
                     key={value}
                     onClick={() => setRange(value)}
@@ -313,7 +309,9 @@ export default function AdminAuditPage() {
               </p>
             </div>
             <div className="border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">Missing Pricing</p>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">
+                Missing Pricing
+              </p>
               <p className="text-sm font-semibold text-slate-900">
                 {stats.totals.missingPricingCount.toLocaleString()}
               </p>
@@ -332,7 +330,8 @@ export default function AdminAuditPage() {
                     >
                       <span className="font-semibold text-slate-800">{provider}</span>
                       <span>
-                        {formatUsd(data.totalCostUsd)} / {data.totalTokens.toLocaleString()} tok · {data.logCount} logs
+                        {formatUsd(data.totalCostUsd)} / {data.totalTokens.toLocaleString()} tok ·{" "}
+                        {data.logCount} logs
                       </span>
                     </div>
                   ))
@@ -352,7 +351,8 @@ export default function AdminAuditPage() {
                     >
                       <span className="font-semibold text-slate-800">{model}</span>
                       <span>
-                        {formatUsd(data.totalCostUsd)} / {data.totalTokens.toLocaleString()} tok · {data.logCount} logs
+                        {formatUsd(data.totalCostUsd)} / {data.totalTokens.toLocaleString()} tok ·{" "}
+                        {data.logCount} logs
                       </span>
                     </div>
                   ))
@@ -369,10 +369,9 @@ export default function AdminAuditPage() {
               <div className="mt-3 grid gap-2 text-xs text-slate-600">
                 {stats && Object.keys(stats.byWorkspace).length ? (
                   sortBuckets(
-                    Object.entries(stats.byWorkspace) as Array<[
-                      string,
-                      UsageBucket & { name: string | null },
-                    ]>,
+                    Object.entries(stats.byWorkspace) as Array<
+                      [string, UsageBucket & { name: string | null }]
+                    >,
                   ).map(([key, data]) => (
                     <div
                       key={key}
@@ -380,7 +379,8 @@ export default function AdminAuditPage() {
                     >
                       <span className="font-semibold text-slate-800">{data.name ?? key}</span>
                       <span>
-                        {formatUsd(data.totalCostUsd)} / {data.totalTokens.toLocaleString()} tok · {data.logCount} logs
+                        {formatUsd(data.totalCostUsd)} / {data.totalTokens.toLocaleString()} tok ·{" "}
+                        {data.logCount} logs
                       </span>
                     </div>
                   ))
@@ -394,10 +394,9 @@ export default function AdminAuditPage() {
               <div className="mt-3 grid gap-2 text-xs text-slate-600">
                 {stats && Object.keys(stats.byUser).length ? (
                   sortBuckets(
-                    Object.entries(stats.byUser) as Array<[
-                      string,
-                      UsageBucket & { name: string | null; email: string | null },
-                    ]>,
+                    Object.entries(stats.byUser) as Array<
+                      [string, UsageBucket & { name: string | null; email: string | null }]
+                    >,
                   ).map(([key, data]) => (
                     <div
                       key={key}
@@ -407,7 +406,8 @@ export default function AdminAuditPage() {
                         {data.name ?? data.email ?? key}
                       </span>
                       <span>
-                        {formatUsd(data.totalCostUsd)} / {data.totalTokens.toLocaleString()} tok · {data.logCount} logs
+                        {formatUsd(data.totalCostUsd)} / {data.totalTokens.toLocaleString()} tok ·{" "}
+                        {data.logCount} logs
                       </span>
                     </div>
                   ))
@@ -444,13 +444,17 @@ export default function AdminAuditPage() {
                 log.metadata && typeof log.metadata === "object"
                   ? (log.metadata as Record<string, unknown>)
                   : null;
-              const provider = usage?.provider ?? (typeof meta?.provider === "string" ? meta.provider : null);
+              const provider =
+                usage?.provider ?? (typeof meta?.provider === "string" ? meta.provider : null);
               const model = usage?.model ?? (typeof meta?.model === "string" ? meta.model : null);
-              const promptTokens = usage?.promptTokens ??
+              const promptTokens =
+                usage?.promptTokens ??
                 (typeof meta?.promptTokens === "number" ? meta.promptTokens : null);
-              const completionTokens = usage?.completionTokens ??
+              const completionTokens =
+                usage?.completionTokens ??
                 (typeof meta?.completionTokens === "number" ? meta.completionTokens : null);
-              const totalTokens = usage?.totalTokens ??
+              const totalTokens =
+                usage?.totalTokens ??
                 (typeof meta?.totalTokens === "number" ? meta.totalTokens : null);
               const usageLine: string[] = [];
               if (provider) usageLine.push(provider);

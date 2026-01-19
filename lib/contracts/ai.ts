@@ -13,9 +13,7 @@ const nullableId = z
   .optional();
 
 const positiveNumber = (message: string) =>
-  z.coerce
-    .number()
-    .refine((value) => Number.isFinite(value) && value > 0, { message });
+  z.coerce.number().refine((value) => Number.isFinite(value) && value > 0, { message });
 
 export const AiSuggestSchema = z
   .object({

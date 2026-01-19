@@ -1,4 +1,4 @@
-import { TaskType } from "@prisma/client";
+import type { TaskType } from "@prisma/client";
 import { requireAuth } from "../../../../lib/api-auth";
 import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
@@ -7,7 +7,7 @@ import { IntakeResolveSchema } from "../../../../lib/contracts/intake";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { TASK_STATUS, TASK_TYPE, SEVERITY } from "../../../../lib/types";
+import { SEVERITY, TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
 
 const errors = createDomainErrors("INTAKE");
 

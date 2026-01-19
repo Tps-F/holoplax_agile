@@ -1,7 +1,7 @@
-import { withApiHandler } from "../../../../lib/api-handler";
-import { requireAdmin } from "../../../../lib/api-guards";
-import { ok } from "../../../../lib/api-response";
 import { calculateAiUsageCost, loadAiPricingTable } from "../../../../lib/ai-pricing";
+import { requireAdmin } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
+import { ok } from "../../../../lib/api-response";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import prisma from "../../../../lib/prisma";
 
@@ -47,9 +47,7 @@ const resolveRange = (searchParams: URLSearchParams) => {
   const now = new Date();
   if (mode === "7d" || mode === "30d" || mode === "90d") {
     const days = Number(mode.replace("d", ""));
-    const start = startOfUtcDay(
-      new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000),
-    );
+    const start = startOfUtcDay(new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000));
     const end = endOfUtcDay(now);
     return { start, end, label: `${toIsoDate(start)} ~ ${toIsoDate(end)}`, mode };
   }
@@ -70,9 +68,7 @@ const normalizeUsage = (
   pricingTable: Awaited<ReturnType<typeof loadAiPricingTable>>["table"],
 ): UsageSummary => {
   const meta =
-    metadata && typeof metadata === "object"
-      ? (metadata as Record<string, unknown>)
-      : null;
+    metadata && typeof metadata === "object" ? (metadata as Record<string, unknown>) : null;
   const provider = typeof meta?.provider === "string" ? meta.provider : null;
   const model = typeof meta?.model === "string" ? meta.model : null;
   const promptTokens = toNumber(meta?.promptTokens);
@@ -213,10 +209,8 @@ const buildTrendBucketsFromUsage = (
 ) => {
   const map = new Map<string, UsageBucket & { start: string; end: string; label: string }>();
   for (const log of logs) {
-    const start =
-      interval === "week" ? getWeekStart(log.createdAt) : getMonthStart(log.createdAt);
-    const key =
-      interval === "week" ? toIsoDate(start) : start.toISOString().slice(0, 7);
+    const start = interval === "week" ? getWeekStart(log.createdAt) : getMonthStart(log.createdAt);
+    const key = interval === "week" ? toIsoDate(start) : start.toISOString().slice(0, 7);
     let bucket = map.get(key);
     if (!bucket) {
       const end =
@@ -263,10 +257,7 @@ export async function GET(request: Request) {
       if (!range) {
         return errors.badRequest("invalid range");
       }
-      const limit = Math.min(
-        Math.max(Number(searchParams.get("limit") ?? 200), 1),
-        500,
-      );
+      const limit = Math.min(Math.max(Number(searchParams.get("limit") ?? 200), 1), 500);
       const { table: pricingTable, source: pricingSource } = await loadAiPricingTable();
       const rangeWhere = {
         createdAt: {
@@ -472,7 +463,8 @@ export async function GET(request: Request) {
         const byProvider: Record<string, UsageBucket> = {};
         const byModel: Record<string, UsageBucket> = {};
         const byWorkspace: Record<string, UsageBucket & { name: string | null }> = {};
-        const byUser: Record<string, UsageBucket & { name: string | null; email: string | null }> = {};
+        const byUser: Record<string, UsageBucket & { name: string | null; email: string | null }> =
+          {};
 
         for (const log of usageRows) {
           const usage = normalizeUsageRow(log, pricingTable);

@@ -3,19 +3,19 @@
 import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useWorkspaceId } from "../components/use-workspace-id";
-import { LoadingButton } from "../components/loading-button";
 import {
-  TASK_STATUS,
-  TASK_TYPE,
   AUTOMATION_STATE,
   SEVERITY,
   SEVERITY_LABELS,
-  TaskDTO,
-  TaskType,
-  TaskStatus,
-  Severity,
+  type Severity,
+  TASK_STATUS,
+  TASK_TYPE,
+  type TaskDTO,
+  type TaskStatus,
+  type TaskType,
 } from "../../lib/types";
+import { LoadingButton } from "../components/loading-button";
+import { useWorkspaceId } from "../components/use-workspace-id";
 
 const storyPoints = [1, 2, 3, 5, 8, 13, 21, 34];
 const taskTypeLabels: Record<TaskType, string> = {
@@ -47,9 +47,8 @@ const checklistFromText = (text: string) =>
       done: false,
     }));
 
-const checklistToText = (
-  checklist?: { id: string; text: string; done: boolean }[] | null,
-) => (checklist ?? []).map((item) => item.text).join("\n");
+const checklistToText = (checklist?: { id: string; text: string; done: boolean }[] | null) =>
+  (checklist ?? []).map((item) => item.text).join("\n");
 const severityOptions: Severity[] = [SEVERITY.LOW, SEVERITY.MEDIUM, SEVERITY.HIGH];
 type SplitSuggestion = {
   title: string;
@@ -88,10 +87,7 @@ const prepTypeLabels: Record<AiPrepType, string> = {
   EMAIL: "メール草案",
 };
 
-const prepStatusMeta: Record<
-  AiPrepOutput["status"],
-  { label: string; className: string }
-> = {
+const prepStatusMeta: Record<AiPrepOutput["status"], { label: string; className: string }> = {
   PENDING: {
     label: "承認待ち",
     className: "border-amber-200 bg-amber-50 text-amber-700",
@@ -152,9 +148,9 @@ export default function BacklogPage() {
     >
   >({});
   const [splitMap, setSplitMap] = useState<Record<string, SplitSuggestion[]>>({});
-  const [splitSuggestionIdMap, setSplitSuggestionIdMap] = useState<
-    Record<string, string | null>
-  >({});
+  const [splitSuggestionIdMap, setSplitSuggestionIdMap] = useState<Record<string, string | null>>(
+    {},
+  );
   const [editItem, setEditItem] = useState<TaskDTO | null>(null);
   const [editForm, setEditForm] = useState({
     title: "",
@@ -187,9 +183,12 @@ export default function BacklogPage() {
   const [creationStep, setCreationStep] = useState<1 | 2 | 3>(1);
   const [aiQuestions, setAiQuestions] = useState<string[]>([]);
   const [aiAnswers, setAiAnswers] = useState<Record<number, string>>({});
-  const [estimatedScore, setEstimatedScore] = useState<
-    { points: number; urgency: string; risk: string; reason?: string } | null
-  >(null);
+  const [estimatedScore, setEstimatedScore] = useState<{
+    points: number;
+    urgency: string;
+    risk: string;
+    reason?: string;
+  } | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [definitionError, setDefinitionError] = useState<string | null>(null);
@@ -257,16 +256,11 @@ export default function BacklogPage() {
       }
       setAiQuestions([
         suggestionText || "このタスクの詳細／背景を教えてください。",
-        scoreData.reason
-          ? `AI推定理由: ${scoreData.reason}`
-          : "補足情報があれば教えてください。",
+        scoreData.reason ? `AI推定理由: ${scoreData.reason}` : "補足情報があれば教えてください。",
       ]);
     } catch {
       setAiError("AI支援に失敗しました。手動で入力できます。");
-      setAiQuestions([
-        "このタスクの目的は何ですか？",
-        "優先順位が高い理由は何ですか？",
-      ]);
+      setAiQuestions(["このタスクの目的は何ですか？", "優先順位が高い理由は何ですか？"]);
     } finally {
       setAiLoading(false);
     }
@@ -400,8 +394,7 @@ export default function BacklogPage() {
 
   const addItem = async () => {
     if (!form.title.trim()) return;
-    const statusValue =
-      view === "sprint" ? TASK_STATUS.SPRINT : TASK_STATUS.BACKLOG;
+    const statusValue = view === "sprint" ? TASK_STATUS.SPRINT : TASK_STATUS.BACKLOG;
     const baseDescription = form.description.trim();
     const aiSupplement = buildAiSupplementText();
     const finalDescription = aiSupplement
@@ -490,9 +483,7 @@ export default function BacklogPage() {
     setSuggestLoadingId(taskId ?? title);
     try {
       if (taskId) {
-        const cached = await fetch(
-          `/api/ai/suggest?taskId=${encodeURIComponent(taskId)}`,
-        );
+        const cached = await fetch(`/api/ai/suggest?taskId=${encodeURIComponent(taskId)}`);
         if (cached.ok) {
           const data = await cached.json();
           if (data.suggestion !== null && data.suggestion !== undefined) {
@@ -621,9 +612,7 @@ export default function BacklogPage() {
     // Optimistic update
     setItems((prev) =>
       prev.map((t) =>
-        t.id === item.id
-          ? { ...t, automationState: AUTOMATION_STATE.SPLIT_PARENT }
-          : t,
+        t.id === item.id ? { ...t, automationState: AUTOMATION_STATE.SPLIT_PARENT } : t,
       ),
     );
     setSplitMap((prev) => {
@@ -636,8 +625,7 @@ export default function BacklogPage() {
       delete next[item.id];
       return next;
     });
-    const statusValue =
-      view === "sprint" ? TASK_STATUS.SPRINT : TASK_STATUS.BACKLOG;
+    const statusValue = view === "sprint" ? TASK_STATUS.SPRINT : TASK_STATUS.BACKLOG;
     await Promise.all(
       suggestions.map((split) =>
         fetch("/api/tasks", {
@@ -689,20 +677,17 @@ export default function BacklogPage() {
     });
   };
 
-  const loadPrepOutputs = useCallback(
-    async (taskId: string) => {
-      setPrepFetchLoading(true);
-      try {
-        const res = await fetch(`/api/ai/prep?taskId=${taskId}`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setPrepOutputs(data.outputs ?? []);
-      } finally {
-        setPrepFetchLoading(false);
-      }
-    },
-    [],
-  );
+  const loadPrepOutputs = useCallback(async (taskId: string) => {
+    setPrepFetchLoading(true);
+    try {
+      const res = await fetch(`/api/ai/prep?taskId=${taskId}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      setPrepOutputs(data.outputs ?? []);
+    } finally {
+      setPrepFetchLoading(false);
+    }
+  }, []);
 
   const openPrepModal = (item: TaskDTO) => {
     setPrepTask(item);
@@ -806,8 +791,7 @@ export default function BacklogPage() {
           .split(",")
           .map((tag) => tag.trim())
           .filter(Boolean),
-        routineCadence:
-          editForm.type === TASK_TYPE.ROUTINE ? editForm.routineCadence : "NONE",
+        routineCadence: editForm.type === TASK_TYPE.ROUTINE ? editForm.routineCadence : "NONE",
         dependencyIds: editForm.dependencyIds,
       }),
     });
@@ -848,9 +832,7 @@ export default function BacklogPage() {
       <header className="border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">
-              Backlog
-            </p>
+            <p className="text-xs uppercase tracking-[0.28em] text-slate-500">Backlog</p>
             <h1 className="text-3xl font-semibold text-slate-900">バックログ</h1>
             <p className="text-sm text-slate-600">
               手入力＋後でインポートを追加。点数と緊急度/リスクをセットしてスプリントに送れるように。
@@ -860,19 +842,21 @@ export default function BacklogPage() {
             <div className="flex items-center gap-2 whitespace-nowrap border border-slate-200 bg-white p-1 text-xs text-slate-700">
               <button
                 onClick={() => setView("product")}
-                className={`px-3 py-1 transition ${view === "product"
-                  ? "bg-[#2323eb]/10 text-[#2323eb]"
-                  : "text-slate-600 hover:text-[#2323eb]"
-                  }`}
+                className={`px-3 py-1 transition ${
+                  view === "product"
+                    ? "bg-[#2323eb]/10 text-[#2323eb]"
+                    : "text-slate-600 hover:text-[#2323eb]"
+                }`}
               >
                 目標リスト
               </button>
               <button
                 onClick={() => setView("sprint")}
-                className={`px-3 py-1 transition ${view === "sprint"
-                  ? "bg-[#2323eb]/10 text-[#2323eb]"
-                  : "text-slate-600 hover:text-[#2323eb]"
-                  }`}
+                className={`px-3 py-1 transition ${
+                  view === "sprint"
+                    ? "bg-[#2323eb]/10 text-[#2323eb]"
+                    : "text-slate-600 hover:text-[#2323eb]"
+                }`}
               >
                 スプリントバックログ
               </button>
@@ -953,26 +937,21 @@ export default function BacklogPage() {
         </section>
       ) : null}
 
-      {items.filter(
-        (item) => item.automationState === AUTOMATION_STATE.PENDING_SPLIT,
-      ).length ? (
+      {items.filter((item) => item.automationState === AUTOMATION_STATE.PENDING_SPLIT).length ? (
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">自動分解 承認待ち</h2>
             <span className="text-xs text-slate-500">
               {
-                items.filter(
-                  (item) => item.automationState === AUTOMATION_STATE.PENDING_SPLIT,
-                ).length
+                items.filter((item) => item.automationState === AUTOMATION_STATE.PENDING_SPLIT)
+                  .length
               }{" "}
               件
             </span>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {items
-              .filter(
-                (item) => item.automationState === AUTOMATION_STATE.PENDING_SPLIT,
-              )
+              .filter((item) => item.automationState === AUTOMATION_STATE.PENDING_SPLIT)
               .map((item) => (
                 <div
                   key={item.id}
@@ -1028,9 +1007,7 @@ export default function BacklogPage() {
             return (
               <div key={type} className="grid gap-3">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-semibold text-slate-900">
-                    {taskTypeLabels[type]}
-                  </h2>
+                  <h2 className="text-sm font-semibold text-slate-900">{taskTypeLabels[type]}</h2>
                   <span className="text-xs text-slate-500">{bucket.length} 件</span>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -1179,10 +1156,14 @@ export default function BacklogPage() {
                               {scoreMap[item.id].points} pt
                             </span>
                             <span className="border border-slate-200 bg-slate-50 px-2 py-1">
-                              緊急度: {SEVERITY_LABELS[scoreMap[item.id].urgency as Severity] ?? scoreMap[item.id].urgency}
+                              緊急度:{" "}
+                              {SEVERITY_LABELS[scoreMap[item.id].urgency as Severity] ??
+                                scoreMap[item.id].urgency}
                             </span>
                             <span className="border border-slate-200 bg-slate-50 px-2 py-1">
-                              リスク: {SEVERITY_LABELS[scoreMap[item.id].risk as Severity] ?? scoreMap[item.id].risk}
+                              リスク:{" "}
+                              {SEVERITY_LABELS[scoreMap[item.id].risk as Severity] ??
+                                scoreMap[item.id].risk}
                             </span>
                           </div>
                           {scoreMap[item.id].reason ? (
@@ -1235,17 +1216,16 @@ export default function BacklogPage() {
                         ) : null}
                         {item.dependencies && item.dependencies.length > 0 ? (
                           <span
-                            className={`border px-2 py-1 ${isBlocked(item)
-                              ? "border-amber-200 bg-amber-50 text-amber-700"
-                              : "border-slate-200 bg-white"
-                              }`}
+                            className={`border px-2 py-1 ${
+                              isBlocked(item)
+                                ? "border-amber-200 bg-amber-50 text-amber-700"
+                                : "border-slate-200 bg-white"
+                            }`}
                           >
                             依存:{" "}
                             {item.dependencies
                               .map((dep) =>
-                                dep.status === TASK_STATUS.DONE
-                                  ? dep.title
-                                  : `${dep.title}*`,
+                                dep.status === TASK_STATUS.DONE ? dep.title : `${dep.title}*`,
                               )
                               .join(", ")}
                           </span>
@@ -1283,7 +1263,7 @@ export default function BacklogPage() {
                         </div>
                       ) : null}
                     </div>
-                    ))}
+                  ))}
                 </div>
               </div>
             );
@@ -1291,26 +1271,21 @@ export default function BacklogPage() {
         </div>
       </section>
 
-      {items.filter(
-        (item) => item.automationState === AUTOMATION_STATE.SPLIT_PARENT,
-      ).length ? (
+      {items.filter((item) => item.automationState === AUTOMATION_STATE.SPLIT_PARENT).length ? (
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">自動分解済み (元タスク)</h2>
             <span className="text-xs text-slate-500">
               {
-                items.filter(
-                  (item) => item.automationState === AUTOMATION_STATE.SPLIT_PARENT,
-                ).length
+                items.filter((item) => item.automationState === AUTOMATION_STATE.SPLIT_PARENT)
+                  .length
               }{" "}
               件
             </span>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {items
-              .filter(
-                (item) => item.automationState === AUTOMATION_STATE.SPLIT_PARENT,
-              )
+              .filter((item) => item.automationState === AUTOMATION_STATE.SPLIT_PARENT)
               .map((item) => (
                 <div
                   key={item.id}
@@ -1351,8 +1326,8 @@ export default function BacklogPage() {
               {creationStep === 1
                 ? "まずは要件と背景を教えてください。"
                 : creationStep === 2
-                ? "どうやったら終わるかを教えてください。"
-                : "情報を確認してタスクを仕上げます。"}
+                  ? "どうやったら終わるかを教えてください。"
+                  : "情報を確認してタスクを仕上げます。"}
             </p>
 
             {creationStep === 1 ? (
@@ -1370,9 +1345,7 @@ export default function BacklogPage() {
                   rows={4}
                   className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 />
-                {aiError ? (
-                  <p className="text-xs text-rose-600">{aiError}</p>
-                ) : null}
+                {aiError ? <p className="text-xs text-rose-600">{aiError}</p> : null}
                 <div className="mt-4 flex items-center justify-between">
                   <button
                     onClick={closeModal}
@@ -1406,9 +1379,7 @@ export default function BacklogPage() {
                 </p>
                 <textarea
                   value={form.definitionOfDone}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, definitionOfDone: e.target.value }))
-                  }
+                  onChange={(e) => setForm((p) => ({ ...p, definitionOfDone: e.target.value }))}
                   placeholder="どうやったら終わる？"
                   rows={4}
                   className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
@@ -1549,9 +1520,7 @@ export default function BacklogPage() {
                     種別
                     <select
                       value={form.type}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, type: e.target.value as TaskType }))
-                      }
+                      onChange={(e) => setForm((p) => ({ ...p, type: e.target.value as TaskType }))}
                       className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                     >
                       {taskTypeOptions.map((option) => (
@@ -1582,9 +1551,7 @@ export default function BacklogPage() {
                     ルーティン周期
                     <select
                       value={form.routineCadence}
-                      onChange={(e) =>
-                        setForm((p) => ({ ...p, routineCadence: e.target.value }))
-                      }
+                      onChange={(e) => setForm((p) => ({ ...p, routineCadence: e.target.value }))}
                       className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                     >
                       <option value="DAILY">毎日</option>
@@ -1834,17 +1801,13 @@ export default function BacklogPage() {
               />
               <input
                 value={editForm.definitionOfDone}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, definitionOfDone: e.target.value }))
-                }
+                onChange={(e) => setEditForm((p) => ({ ...p, definitionOfDone: e.target.value }))}
                 placeholder="完了条件（DoD）"
                 className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
               />
               <textarea
                 value={editForm.checklistText}
-                onChange={(e) =>
-                  setEditForm((p) => ({ ...p, checklistText: e.target.value }))
-                }
+                onChange={(e) => setEditForm((p) => ({ ...p, checklistText: e.target.value }))}
                 placeholder="チェックリスト（1行1項目）"
                 rows={3}
                 className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
@@ -1865,11 +1828,15 @@ export default function BacklogPage() {
                 </select>
                 <select
                   value={editForm.urgency}
-                  onChange={(e) => setEditForm((p) => ({ ...p, urgency: e.target.value as Severity }))}
+                  onChange={(e) =>
+                    setEditForm((p) => ({ ...p, urgency: e.target.value as Severity }))
+                  }
                   className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 >
                   {severityOptions.map((v) => (
-                    <option key={v} value={v}>{SEVERITY_LABELS[v]}</option>
+                    <option key={v} value={v}>
+                      {SEVERITY_LABELS[v]}
+                    </option>
                   ))}
                 </select>
                 <select
@@ -1878,7 +1845,9 @@ export default function BacklogPage() {
                   className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 >
                   {severityOptions.map((v) => (
-                    <option key={v} value={v}>{SEVERITY_LABELS[v]}</option>
+                    <option key={v} value={v}>
+                      {SEVERITY_LABELS[v]}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -1922,9 +1891,7 @@ export default function BacklogPage() {
                   ルーティン周期
                   <select
                     value={editForm.routineCadence}
-                    onChange={(e) =>
-                      setEditForm((p) => ({ ...p, routineCadence: e.target.value }))
-                    }
+                    onChange={(e) => setEditForm((p) => ({ ...p, routineCadence: e.target.value }))}
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   >
                     <option value="DAILY">毎日</option>
@@ -1947,9 +1914,7 @@ export default function BacklogPage() {
                   担当
                   <select
                     value={editForm.assigneeId}
-                    onChange={(e) =>
-                      setEditForm((p) => ({ ...p, assigneeId: e.target.value }))
-                    }
+                    onChange={(e) => setEditForm((p) => ({ ...p, assigneeId: e.target.value }))}
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   >
                     <option value="">未設定</option>

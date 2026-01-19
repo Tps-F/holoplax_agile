@@ -7,11 +7,9 @@ const nonEmptyString = (message: string) =>
 export const VelocityCreateSchema = z
   .object({
     name: nonEmptyString("name is required"),
-    points: z.coerce
-      .number()
-      .refine((value) => Number.isFinite(value) && value > 0, {
-        message: "points must be positive",
-      }),
+    points: z.coerce.number().refine((value) => Number.isFinite(value) && value > 0, {
+      message: "points must be positive",
+    }),
     range: nonEmptyString("range is required"),
   })
   .passthrough();

@@ -1,12 +1,11 @@
-import prisma from "./prisma";
-import { generateSplitSuggestions } from "./ai-suggestions";
 import { requestAiChat } from "./ai-provider";
+import { generateSplitSuggestions } from "./ai-suggestions";
 import type { AiUsageContext } from "./ai-usage";
-import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, SEVERITY } from "./types";
 import { hasNoDelegateTag } from "./automation-constants";
+import prisma from "./prisma";
+import { AUTOMATION_STATE, SEVERITY, TASK_STATUS, TASK_TYPE } from "./types";
 
-const scoreFromPoints = (points: number) =>
-  Math.min(100, Math.max(0, Math.round(points * 9)));
+const scoreFromPoints = (points: number) => Math.min(100, Math.max(0, Math.round(points * 9)));
 const STAGE_STEP = 5;
 
 // 高スコアはデフォルトで承認必須にする。明示的に false を指定した場合のみ自動分解を許可。

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, SEVERITY } from "../types";
+import { AUTOMATION_STATE, SEVERITY, TASK_STATUS, TASK_TYPE } from "../types";
 
 const taskStatusValues = Object.values(TASK_STATUS) as [string, ...string[]];
 const taskTypeValues = Object.values(TASK_TYPE) as [string, ...string[]];
@@ -19,8 +19,7 @@ const nullableId = z
   .optional();
 
 const pointsAllowed = [1, 2, 3, 5, 8, 13, 21, 34] as const;
-export const TaskPointsSchema = z
-  .coerce
+export const TaskPointsSchema = z.coerce
   .number()
   .refine((value) => pointsAllowed.includes(value as (typeof pointsAllowed)[number]), {
     message: "points must be one of 1,2,3,5,8,13,21,34",

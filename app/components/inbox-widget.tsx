@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { TASK_TYPE } from "../../lib/types";
-import { useWorkspaceId } from "./use-workspace-id";
 import { useWorkspaceStore } from "../../lib/stores/workspace-store";
+import { TASK_TYPE } from "../../lib/types";
 import { LoadingButton } from "./loading-button";
+import { useWorkspaceId } from "./use-workspace-id";
 
 type IntakeItem = {
   id: string;
@@ -60,7 +60,7 @@ export function InboxWidget() {
 
   useEffect(() => {
     void fetchIntake();
-  }, [fetchIntake, workspaceId]);
+  }, [fetchIntake]);
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -152,7 +152,7 @@ export function InboxWidget() {
 
   const renderItem = (item: IntakeItem, scope: "global" | "workspace") => {
     const selectedWorkspaceId =
-      scope === "workspace" ? item.workspaceId : workspaceChoice[item.id] ?? null;
+      scope === "workspace" ? item.workspaceId : (workspaceChoice[item.id] ?? null);
     const selectedTaskType = taskTypeChoice[item.id] ?? TASK_TYPE.PBI;
     const duplicates = duplicatesMap[item.id] ?? [];
     return (
@@ -295,9 +295,7 @@ export function InboxWidget() {
             <span>保存先</span>
             <select
               value={targetScope}
-              onChange={(event) =>
-                setTargetScope(event.target.value as "global" | "workspace")
-              }
+              onChange={(event) => setTargetScope(event.target.value as "global" | "workspace")}
               className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
             >
               <option value="global">Global Inbox</option>

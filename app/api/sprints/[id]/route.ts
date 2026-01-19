@@ -1,5 +1,5 @@
-import { withApiHandler } from "../../../../lib/api-handler";
 import { requireWorkspaceAuth } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import { logAudit } from "../../../../lib/audit";
 import { SprintUpdateSchema } from "../../../../lib/contracts/sprint";
@@ -9,10 +9,7 @@ import prisma from "../../../../lib/prisma";
 
 const errors = createDomainErrors("SPRINT");
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApiHandler(
     {
       logLabel: "PATCH /api/sprints/[id]",

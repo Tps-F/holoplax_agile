@@ -67,7 +67,8 @@ export function buildAiUsageMetadata(
   const completionTokens = toNumber(usage.completion_tokens);
   const rawTotalTokens = toNumber(usage.total_tokens);
   const hasTokens = promptTokens !== null || completionTokens !== null || rawTotalTokens !== null;
-  const totalTokens = rawTotalTokens ?? (hasTokens ? (promptTokens ?? 0) + (completionTokens ?? 0) : null);
+  const totalTokens =
+    rawTotalTokens ?? (hasTokens ? (promptTokens ?? 0) + (completionTokens ?? 0) : null);
 
   return {
     provider,

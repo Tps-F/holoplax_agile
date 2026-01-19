@@ -1,5 +1,5 @@
-import { randomBytes } from "crypto";
 import { hash } from "bcryptjs";
+import { randomBytes } from "crypto";
 import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import { AuthRegisterSchema } from "../../../../lib/contracts/auth";

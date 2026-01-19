@@ -1,10 +1,16 @@
-import { useState, useCallback, useRef } from "react";
-import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, SEVERITY, TaskDTO } from "../../../lib/types";
+import { useRef, useState } from "react";
 import {
-  trackSuggestionViewed,
   trackSuggestionAccepted,
   trackSuggestionRejected,
+  trackSuggestionViewed,
 } from "../../../lib/ai-reaction-tracker";
+import {
+  AUTOMATION_STATE,
+  SEVERITY,
+  TASK_STATUS,
+  TASK_TYPE,
+  type TaskDTO,
+} from "../../../lib/types";
 
 type SplitSuggestion = {
   title: string;
@@ -32,20 +38,13 @@ export type UseAiSuggestionsOptions = {
   setItems: React.Dispatch<React.SetStateAction<TaskDTO[]>>;
 };
 
-export function useAiSuggestions({
-  fetchTasks,
-  setItems,
-}: UseAiSuggestionsOptions) {
-  const [suggestionMap, setSuggestionMap] = useState<Record<string, TipResult>>(
-    {},
-  );
+export function useAiSuggestions({ fetchTasks, setItems }: UseAiSuggestionsOptions) {
+  const [suggestionMap, setSuggestionMap] = useState<Record<string, TipResult>>({});
   const [scoreMap, setScoreMap] = useState<Record<string, ScoreResult>>({});
-  const [splitMap, setSplitMap] = useState<Record<string, SplitSuggestion[]>>(
+  const [splitMap, setSplitMap] = useState<Record<string, SplitSuggestion[]>>({});
+  const [splitSuggestionIdMap, setSplitSuggestionIdMap] = useState<Record<string, string | null>>(
     {},
   );
-  const [splitSuggestionIdMap, setSplitSuggestionIdMap] = useState<
-    Record<string, string | null>
-  >({});
 
   const [suggestLoadingId, setSuggestLoadingId] = useState<string | null>(null);
   const [scoreLoadingId, setScoreLoadingId] = useState<string | null>(null);
@@ -54,17 +53,11 @@ export function useAiSuggestions({
   // 表示タイミングのトラッキング用
   const viewedAtMap = useRef<Record<string, string>>({});
 
-  const getSuggestion = async (
-    title: string,
-    description?: string,
-    taskId?: string,
-  ) => {
+  const getSuggestion = async (title: string, description?: string, taskId?: string) => {
     setSuggestLoadingId(taskId ?? title);
     try {
       if (taskId) {
-        const cached = await fetch(
-          `/api/ai/suggest?taskId=${encodeURIComponent(taskId)}`,
-        );
+        const cached = await fetch(`/api/ai/suggest?taskId=${encodeURIComponent(taskId)}`);
         if (cached.ok) {
           const data = await cached.json();
           if (data.suggestion !== null && data.suggestion !== undefined) {
@@ -145,10 +138,7 @@ export function useAiSuggestions({
     const suggestion = suggestionMap[itemId];
     if (!suggestion) return;
     // Track ACCEPTED
-    trackSuggestionAccepted(
-      suggestion.suggestionId,
-      viewedAtMap.current[`tip_${itemId}`],
-    );
+    trackSuggestionAccepted(suggestion.suggestionId, viewedAtMap.current[`tip_${itemId}`]);
     await fetch("/api/ai/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -166,10 +156,7 @@ export function useAiSuggestions({
     const score = scoreMap[itemId];
     if (!score) return;
     // Track ACCEPTED
-    trackSuggestionAccepted(
-      score.suggestionId,
-      viewedAtMap.current[`score_${itemId}`],
-    );
+    trackSuggestionAccepted(score.suggestionId, viewedAtMap.current[`score_${itemId}`]);
     await fetch("/api/ai/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -226,16 +213,11 @@ export function useAiSuggestions({
     if (!suggestions.length) return;
     const suggestionId = splitSuggestionIdMap[item.id];
     // Track ACCEPTED
-    trackSuggestionAccepted(
-      suggestionId,
-      viewedAtMap.current[`split_${item.id}`],
-    );
+    trackSuggestionAccepted(suggestionId, viewedAtMap.current[`split_${item.id}`]);
     // Optimistic update
     setItems((prev) =>
       prev.map((t) =>
-        t.id === item.id
-          ? { ...t, automationState: AUTOMATION_STATE.SPLIT_PARENT }
-          : t,
+        t.id === item.id ? { ...t, automationState: AUTOMATION_STATE.SPLIT_PARENT } : t,
       ),
     );
     setSplitMap((prev) => {
@@ -248,8 +230,7 @@ export function useAiSuggestions({
       delete next[item.id];
       return next;
     });
-    const statusValue =
-      view === "sprint" ? TASK_STATUS.SPRINT : TASK_STATUS.BACKLOG;
+    const statusValue = view === "sprint" ? TASK_STATUS.SPRINT : TASK_STATUS.BACKLOG;
     await Promise.all(
       suggestions.map((split) =>
         fetch("/api/tasks", {
@@ -288,10 +269,7 @@ export function useAiSuggestions({
   const rejectSplit = (itemId: string) => {
     const suggestionId = splitSuggestionIdMap[itemId];
     // Track REJECTED
-    trackSuggestionRejected(
-      suggestionId,
-      viewedAtMap.current[`split_${itemId}`],
-    );
+    trackSuggestionRejected(suggestionId, viewedAtMap.current[`split_${itemId}`]);
     setSplitMap((prev) => {
       const next = { ...prev };
       delete next[itemId];

@@ -1,16 +1,21 @@
-import { Prisma, TaskStatus, TaskType } from "@prisma/client";
+import { Prisma, type TaskStatus, type TaskType } from "@prisma/client";
 import { randomUUID } from "crypto";
-import { withApiHandler } from "../../../../lib/api-handler";
 import { requireWorkspaceAuth } from "../../../../lib/api-guards";
+import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
-import { applyAutomationForTask } from "../../../../lib/automation";
-import { badPoints } from "../../../../lib/points";
 import { logAudit } from "../../../../lib/audit";
+import { applyAutomationForTask } from "../../../../lib/automation";
 import { TaskUpdateSchema } from "../../../../lib/contracts/task";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
+import { badPoints } from "../../../../lib/points";
 import prisma from "../../../../lib/prisma";
-import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, AutomationState } from "../../../../lib/types";
+import {
+  AUTOMATION_STATE,
+  type AutomationState,
+  TASK_STATUS,
+  TASK_TYPE,
+} from "../../../../lib/types";
 
 const isAutomationState = (value: unknown): value is AutomationState =>
   Object.values(AUTOMATION_STATE).includes(value as AutomationState);
@@ -75,10 +80,7 @@ const nextRoutineAt = (cadence: "DAILY" | "WEEKLY", base: Date) => {
 };
 const errors = createDomainErrors("TASK");
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApiHandler(
     {
       logLabel: "PATCH /api/tasks/[id]",
@@ -158,226 +160,225 @@ export async function PATCH(
       if (!workspaceId) {
         return errors.notFound("workspace not selected");
       }
-    const currentTask = await prisma.task.findFirst({
-      where: { id, workspaceId },
-      include: { routineRule: true },
-    });
-    if (!currentTask) {
-      return errors.notFound();
-    }
-    if (statusValue === TASK_STATUS.SPRINT || statusValue === TASK_STATUS.DONE) {
-      const blocking = await prisma.taskDependency.findMany({
-        where: {
-          taskId: id,
-          dependsOn: { status: { not: TASK_STATUS.DONE } },
-        },
-        select: { dependsOn: { select: { id: true, title: true, status: true } } },
+      const currentTask = await prisma.task.findFirst({
+        where: { id, workspaceId },
+        include: { routineRule: true },
       });
-      if (blocking.length > 0) {
-        return errors.badRequest("dependencies must be done before moving");
+      if (!currentTask) {
+        return errors.notFound();
       }
-    }
-    if (body.assigneeId !== undefined) {
-      const nextAssigneeId = body.assigneeId ? String(body.assigneeId) : null;
-      if (nextAssigneeId) {
-        const member = await prisma.workspaceMember.findUnique({
-          where: { workspaceId_userId: { workspaceId, userId: nextAssigneeId } },
-          select: { userId: true },
+      if (statusValue === TASK_STATUS.SPRINT || statusValue === TASK_STATUS.DONE) {
+        const blocking = await prisma.taskDependency.findMany({
+          where: {
+            taskId: id,
+            dependsOn: { status: { not: TASK_STATUS.DONE } },
+          },
+          select: { dependsOn: { select: { id: true, title: true, status: true } } },
         });
-        data.assigneeId = member ? nextAssigneeId : null;
-      } else {
-        data.assigneeId = null;
-      }
-    }
-    if (body.parentId !== undefined) {
-      const nextParentId = body.parentId ? String(body.parentId) : null;
-      if (nextParentId && nextParentId !== id) {
-        const parent = await prisma.task.findFirst({
-          where: { id: nextParentId, workspaceId },
-          select: { id: true },
-        });
-        data.parentId = parent ? parent.id : null;
-      } else {
-        data.parentId = null;
-      }
-    }
-    if (statusValue === TASK_STATUS.SPRINT) {
-      const activeSprint = await prisma.sprint.findFirst({
-        where: { workspaceId, status: "ACTIVE" },
-        orderBy: { startedAt: "desc" },
-        select: { id: true, capacityPoints: true },
-      });
-      if (!activeSprint) {
-        return errors.badRequest("active sprint not found");
-      }
-      const current = await prisma.task.aggregate({
-        where: { workspaceId, status: TASK_STATUS.SPRINT, id: { not: id } },
-        _sum: { points: true },
-      });
-      const currentPoints = currentTask.points ?? 0;
-      const nextPoints =
-        (current._sum.points ?? 0) + (typeof data.points === "number" ? data.points : currentPoints);
-      if (nextPoints > activeSprint.capacityPoints) {
-        return errors.badRequest("sprint capacity exceeded");
-      }
-      data.sprintId = activeSprint?.id ?? null;
-    }
-    if (statusValue === TASK_STATUS.BACKLOG) {
-      data.sprintId = null;
-    }
-    const updated = await prisma.task.updateMany({
-      where: { id, workspaceId },
-      data,
-    });
-    if (!updated.count) {
-      return errors.notFound();
-    }
-    const task = await prisma.task.findFirst({
-      where: { id, workspaceId },
-      include: { routineRule: true },
-    });
-    if (Array.isArray(body.dependencyIds)) {
-      const dependencyIds = body.dependencyIds.map((depId: string) => String(depId));
-      const allowed = dependencyIds.length
-        ? await prisma.task.findMany({
-            where: { id: { in: dependencyIds }, workspaceId },
-            select: { id: true },
-          })
-        : [];
-      await prisma.taskDependency.deleteMany({ where: { taskId: id } });
-      if (allowed.length > 0) {
-        await prisma.taskDependency.createMany({
-          data: allowed
-            .map((dep) => dep.id)
-            .filter((depId) => depId && depId !== id)
-            .map((depId) => ({ taskId: id, dependsOnId: depId })),
-          skipDuplicates: true,
-        });
-      }
-    }
-    if (task) {
-      const finalType = (task.type ?? TASK_TYPE.PBI) as string;
-      if (finalType !== TASK_TYPE.ROUTINE && task.routineRule) {
-        await prisma.routineRule.delete({ where: { taskId: task.id } });
-      } else if (finalType === TASK_TYPE.ROUTINE) {
-        if (cadenceValue) {
-          const baseDate = task.dueDate ? new Date(task.dueDate) : new Date();
-          const nextAt = routineNextAt ?? task.routineRule?.nextAt ?? nextRoutineAt(cadenceValue, baseDate);
-          await prisma.routineRule.upsert({
-            where: { taskId: task.id },
-            update: { cadence: cadenceValue, nextAt },
-            create: { taskId: task.id, cadence: cadenceValue, nextAt },
-          });
-        } else if (routineNextAt && task.routineRule) {
-          await prisma.routineRule.update({
-            where: { taskId: task.id },
-            data: { nextAt: routineNextAt },
-          });
-        } else if (shouldClearRoutine && task.routineRule) {
-          await prisma.routineRule.delete({ where: { taskId: task.id } });
+        if (blocking.length > 0) {
+          return errors.badRequest("dependencies must be done before moving");
         }
       }
-    }
-
-    await logAudit({
-      actorId: userId,
-      action: "TASK_UPDATE",
-      targetWorkspaceId: workspaceId,
-      metadata: { taskId: id },
-    });
-    if (task && statusValue && currentTask.status !== statusValue) {
-      await prisma.taskStatusEvent.create({
-        data: {
-          taskId: task.id,
-          fromStatus: currentTask.status ?? null,
-          toStatus: statusValue,
-          actorId: userId,
-          source: "api",
-          workspaceId,
-        },
+      if (body.assigneeId !== undefined) {
+        const nextAssigneeId = body.assigneeId ? String(body.assigneeId) : null;
+        if (nextAssigneeId) {
+          const member = await prisma.workspaceMember.findUnique({
+            where: { workspaceId_userId: { workspaceId, userId: nextAssigneeId } },
+            select: { userId: true },
+          });
+          data.assigneeId = member ? nextAssigneeId : null;
+        } else {
+          data.assigneeId = null;
+        }
+      }
+      if (body.parentId !== undefined) {
+        const nextParentId = body.parentId ? String(body.parentId) : null;
+        if (nextParentId && nextParentId !== id) {
+          const parent = await prisma.task.findFirst({
+            where: { id: nextParentId, workspaceId },
+            select: { id: true },
+          });
+          data.parentId = parent ? parent.id : null;
+        } else {
+          data.parentId = null;
+        }
+      }
+      if (statusValue === TASK_STATUS.SPRINT) {
+        const activeSprint = await prisma.sprint.findFirst({
+          where: { workspaceId, status: "ACTIVE" },
+          orderBy: { startedAt: "desc" },
+          select: { id: true, capacityPoints: true },
+        });
+        if (!activeSprint) {
+          return errors.badRequest("active sprint not found");
+        }
+        const current = await prisma.task.aggregate({
+          where: { workspaceId, status: TASK_STATUS.SPRINT, id: { not: id } },
+          _sum: { points: true },
+        });
+        const currentPoints = currentTask.points ?? 0;
+        const nextPoints =
+          (current._sum.points ?? 0) +
+          (typeof data.points === "number" ? data.points : currentPoints);
+        if (nextPoints > activeSprint.capacityPoints) {
+          return errors.badRequest("sprint capacity exceeded");
+        }
+        data.sprintId = activeSprint?.id ?? null;
+      }
+      if (statusValue === TASK_STATUS.BACKLOG) {
+        data.sprintId = null;
+      }
+      const updated = await prisma.task.updateMany({
+        where: { id, workspaceId },
+        data,
       });
-    }
-    if (
-      task &&
-      statusValue === TASK_STATUS.DONE &&
-      currentTask.status !== TASK_STATUS.DONE &&
-      task.type === TASK_TYPE.ROUTINE
-    ) {
-      const rule = task.routineRule
-        ? task.routineRule
-        : await prisma.routineRule.findUnique({ where: { taskId: task.id } });
-      if (rule) {
-        const now = new Date();
-        const dueAt = rule.nextAt && rule.nextAt > now ? rule.nextAt : now;
-        const nextAt = nextRoutineAt(rule.cadence as "DAILY" | "WEEKLY", dueAt);
-        const resetChecklist = normalizeChecklistForReset(task.checklist);
-        const created = await prisma.task.create({
-          data: {
-            title: task.title,
-            description: task.description ?? "",
-            definitionOfDone: task.definitionOfDone ?? "",
-            checklist: toNullableJsonInput(resetChecklist),
-            points: task.points,
-            urgency: task.urgency,
-            risk: task.risk,
-            status: TASK_STATUS.BACKLOG,
-            type: TASK_TYPE.ROUTINE,
-            dueDate: dueAt,
-            tags: task.tags ?? [],
-            assigneeId: task.assigneeId ?? null,
-            userId: task.userId ?? userId,
-            workspaceId,
-          },
-        });
-        await prisma.routineRule.update({
-          where: { taskId: task.id },
-          data: { taskId: created.id, nextAt },
-        });
+      if (!updated.count) {
+        return errors.notFound();
+      }
+      const task = await prisma.task.findFirst({
+        where: { id, workspaceId },
+        include: { routineRule: true },
+      });
+      if (Array.isArray(body.dependencyIds)) {
+        const dependencyIds = body.dependencyIds.map((depId: string) => String(depId));
+        const allowed = dependencyIds.length
+          ? await prisma.task.findMany({
+              where: { id: { in: dependencyIds }, workspaceId },
+              select: { id: true },
+            })
+          : [];
+        await prisma.taskDependency.deleteMany({ where: { taskId: id } });
+        if (allowed.length > 0) {
+          await prisma.taskDependency.createMany({
+            data: allowed
+              .map((dep) => dep.id)
+              .filter((depId) => depId && depId !== id)
+              .map((depId) => ({ taskId: id, dependsOnId: depId })),
+            skipDuplicates: true,
+          });
+        }
+      }
+      if (task) {
+        const finalType = (task.type ?? TASK_TYPE.PBI) as string;
+        if (finalType !== TASK_TYPE.ROUTINE && task.routineRule) {
+          await prisma.routineRule.delete({ where: { taskId: task.id } });
+        } else if (finalType === TASK_TYPE.ROUTINE) {
+          if (cadenceValue) {
+            const baseDate = task.dueDate ? new Date(task.dueDate) : new Date();
+            const nextAt =
+              routineNextAt ?? task.routineRule?.nextAt ?? nextRoutineAt(cadenceValue, baseDate);
+            await prisma.routineRule.upsert({
+              where: { taskId: task.id },
+              update: { cadence: cadenceValue, nextAt },
+              create: { taskId: task.id, cadence: cadenceValue, nextAt },
+            });
+          } else if (routineNextAt && task.routineRule) {
+            await prisma.routineRule.update({
+              where: { taskId: task.id },
+              data: { nextAt: routineNextAt },
+            });
+          } else if (shouldClearRoutine && task.routineRule) {
+            await prisma.routineRule.delete({ where: { taskId: task.id } });
+          }
+        }
+      }
+
+      await logAudit({
+        actorId: userId,
+        action: "TASK_UPDATE",
+        targetWorkspaceId: workspaceId,
+        metadata: { taskId: id },
+      });
+      if (task && statusValue && currentTask.status !== statusValue) {
         await prisma.taskStatusEvent.create({
           data: {
-            taskId: created.id,
-            fromStatus: null,
-            toStatus: TASK_STATUS.BACKLOG,
+            taskId: task.id,
+            fromStatus: currentTask.status ?? null,
+            toStatus: statusValue,
             actorId: userId,
-            source: "routine",
+            source: "api",
             workspaceId,
           },
         });
+      }
+      if (
+        task &&
+        statusValue === TASK_STATUS.DONE &&
+        currentTask.status !== TASK_STATUS.DONE &&
+        task.type === TASK_TYPE.ROUTINE
+      ) {
+        const rule = task.routineRule
+          ? task.routineRule
+          : await prisma.routineRule.findUnique({ where: { taskId: task.id } });
+        if (rule) {
+          const now = new Date();
+          const dueAt = rule.nextAt && rule.nextAt > now ? rule.nextAt : now;
+          const nextAt = nextRoutineAt(rule.cadence as "DAILY" | "WEEKLY", dueAt);
+          const resetChecklist = normalizeChecklistForReset(task.checklist);
+          const created = await prisma.task.create({
+            data: {
+              title: task.title,
+              description: task.description ?? "",
+              definitionOfDone: task.definitionOfDone ?? "",
+              checklist: toNullableJsonInput(resetChecklist),
+              points: task.points,
+              urgency: task.urgency,
+              risk: task.risk,
+              status: TASK_STATUS.BACKLOG,
+              type: TASK_TYPE.ROUTINE,
+              dueDate: dueAt,
+              tags: task.tags ?? [],
+              assigneeId: task.assigneeId ?? null,
+              userId: task.userId ?? userId,
+              workspaceId,
+            },
+          });
+          await prisma.routineRule.update({
+            where: { taskId: task.id },
+            data: { taskId: created.id, nextAt },
+          });
+          await prisma.taskStatusEvent.create({
+            data: {
+              taskId: created.id,
+              fromStatus: null,
+              toStatus: TASK_STATUS.BACKLOG,
+              actorId: userId,
+              source: "routine",
+              workspaceId,
+            },
+          });
+          await applyAutomationForTask({
+            userId,
+            workspaceId,
+            task: {
+              id: created.id,
+              title: created.title,
+              description: created.description ?? "",
+              points: created.points,
+              status: created.status,
+            },
+          });
+        }
+      }
+      if (task) {
         await applyAutomationForTask({
           userId,
           workspaceId,
           task: {
-            id: created.id,
-            title: created.title,
-            description: created.description ?? "",
-            points: created.points,
-            status: created.status,
+            id: task.id,
+            title: task.title,
+            description: task.description ?? "",
+            points: task.points,
+            status: task.status,
           },
         });
       }
-    }
-    if (task) {
-      await applyAutomationForTask({
-        userId,
-        workspaceId,
-        task: {
-          id: task.id,
-          title: task.title,
-          description: task.description ?? "",
-          points: task.points,
-          status: task.status,
-        },
-      });
-    }
-    return ok({ task });
+      return ok({ task });
     },
   );
 }
 
-export async function DELETE(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   return withApiHandler(
     {
       logLabel: "DELETE /api/tasks/[id]",

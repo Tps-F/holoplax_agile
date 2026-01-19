@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useMemo, useState } from "react";
 
 type IntentOption = {
   id: string;
@@ -20,7 +20,8 @@ const intents: IntentOption[] = [
 const prepExamples = {
   CHECKLIST: "- 目的と完了条件を整理\n- 必要な資料を準備\n- 依存タスクを確認\n- 実行\n- 共有",
   IMPLEMENTATION: "1. 影響範囲を洗い出す\n2. 変更方針を決定\n3. 実装\n4. テスト\n5. 振り返り",
-  EMAIL: "件名: 進捗共有\n\n関係者各位\n\n現在の状況を共有します。\n- 進捗\n- 次のアクション\n- 期限\n\nよろしくお願いします。",
+  EMAIL:
+    "件名: 進捗共有\n\n関係者各位\n\n現在の状況を共有します。\n- 進捗\n- 次のアクション\n- 期限\n\nよろしくお願いします。",
 };
 
 export default function OnboardingPage() {
@@ -36,9 +37,7 @@ export default function OnboardingPage() {
   const [routineCadence, setRoutineCadence] = useState("DAILY");
   const [routineDescription, setRoutineDescription] = useState("");
   const [focusTasks, setFocusTasks] = useState<string[]>(["", "", ""]);
-  const [prepType, setPrepType] = useState<"CHECKLIST" | "IMPLEMENTATION" | "EMAIL">(
-    "CHECKLIST",
-  );
+  const [prepType, setPrepType] = useState<"CHECKLIST" | "IMPLEMENTATION" | "EMAIL">("CHECKLIST");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const storyPoints = [1, 2, 3, 5, 8, 13, 21, 34];
@@ -91,9 +90,7 @@ export default function OnboardingPage() {
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f8fafc,_#f1f5f9_45%,_#e2e8f0_100%)] px-4 py-10 text-slate-900">
       <div className="mx-auto grid w-full max-w-4xl gap-8">
         <header className="grid gap-3 text-center">
-          <p className="text-xs uppercase tracking-[0.35em] text-slate-500">
-            Journey Setup
-          </p>
+          <p className="text-xs uppercase tracking-[0.35em] text-slate-500">Journey Setup</p>
           <h1 className="text-3xl font-semibold">旅の始まりを描こう</h1>
           <p className="text-sm text-slate-600">
             Plan → Execute → Review を回すための下準備を整えます。
