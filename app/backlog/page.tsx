@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { BarChart2, Lightbulb, Pencil, Scissors, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -1057,15 +1057,27 @@ export default function BacklogPage() {
                           <p className="font-semibold text-slate-900">{item.title}</p>
                           {proactiveSuggestionsMap.get(item.id) && (
                             <span
-                              className="text-[10px] text-blue-600 opacity-70"
+                              className="flex items-center gap-1 text-[10px] text-blue-600 opacity-70"
                               title={proactiveSuggestionsMap.get(item.id)?.reason}
                             >
-                              {proactiveSuggestionsMap.get(item.id)?.type === "TIP" &&
-                                "💡 ヒント提案あり"}
-                              {proactiveSuggestionsMap.get(item.id)?.type === "SCORE" &&
-                                "📊 見積もり提案あり"}
-                              {proactiveSuggestionsMap.get(item.id)?.type === "SPLIT" &&
-                                "✂️ 分解提案あり"}
+                              {proactiveSuggestionsMap.get(item.id)?.type === "TIP" && (
+                                <>
+                                  <Lightbulb size={10} />
+                                  ヒント提案あり
+                                </>
+                              )}
+                              {proactiveSuggestionsMap.get(item.id)?.type === "SCORE" && (
+                                <>
+                                  <BarChart2 size={10} />
+                                  見積もり提案あり
+                                </>
+                              )}
+                              {proactiveSuggestionsMap.get(item.id)?.type === "SPLIT" && (
+                                <>
+                                  <Scissors size={10} />
+                                  分解提案あり
+                                </>
+                              )}
                             </span>
                           )}
                         </div>

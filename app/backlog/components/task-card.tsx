@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { BarChart2, Lightbulb, Pencil, Scissors, Trash2 } from "lucide-react";
 import {
   AUTOMATION_STATE,
   SEVERITY_LABELS,
@@ -75,10 +75,32 @@ export type TaskCardProps = {
   onToggleChecklistItem: (taskId: string, checklistId: string) => void;
 };
 
-const proactiveLabels: Record<string, string> = {
-  TIP: "💡 ヒント提案あり",
-  SCORE: "📊 見積もり提案あり",
-  SPLIT: "✂️ 分解提案あり",
+const ProactiveLabel = ({ type }: { type: string }) => {
+  switch (type) {
+    case "TIP":
+      return (
+        <>
+          <Lightbulb size={10} />
+          ヒント提案あり
+        </>
+      );
+    case "SCORE":
+      return (
+        <>
+          <BarChart2 size={10} />
+          見積もり提案あり
+        </>
+      );
+    case "SPLIT":
+      return (
+        <>
+          <Scissors size={10} />
+          分解提案あり
+        </>
+      );
+    default:
+      return null;
+  }
 };
 
 export function TaskCard({
@@ -114,10 +136,10 @@ export function TaskCard({
           <p className="font-semibold text-slate-900">{item.title}</p>
           {proactiveSuggestion && (
             <span
-              className="text-[10px] text-blue-600 opacity-70"
+              className="flex items-center gap-1 text-[10px] text-blue-600 opacity-70"
               title={proactiveSuggestion.reason}
             >
-              {proactiveLabels[proactiveSuggestion.type]}
+              <ProactiveLabel type={proactiveSuggestion.type} />
             </span>
           )}
         </div>
