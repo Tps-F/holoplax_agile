@@ -336,6 +336,9 @@ model Task {
   routineRule      RoutineRule?
 
   @@index([parentId])
+  @@index([workspaceId, status])
+  @@index([workspaceId, automationState])
+  @@index([sprintId, status])
 }
 
 model VelocityEntry {
