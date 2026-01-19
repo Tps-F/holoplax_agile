@@ -60,7 +60,7 @@ export async function GET() {
       },
     },
     async () => {
-      const { userId, workspaceId } = await requireWorkspaceAuth();
+      const { workspaceId } = await requireWorkspaceAuth();
       if (!workspaceId) {
         return ok({ tasks: [] });
       }
