@@ -144,10 +144,8 @@ export async function applyAutomationForTask(params: {
     return;
   }
 
-  // Already rejected split - skip
-  if (current.automationState === AUTOMATION_STATE.SPLIT_REJECTED) {
-    return;
-  }
+  // Note: We only reach here if automationState === NONE
+  // (already filtered above), so no need to check for SPLIT_REJECTED
 
   const splitResult = await generateSplitSuggestions({
     title: current.title,

@@ -5,12 +5,14 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkspaceId } from "../components/use-workspace-id";
 import { LoadingButton } from "../components/loading-button";
-import { TASK_STATUS, TASK_TYPE, TaskDTO, TaskType } from "../../lib/types";
 import {
-  DELEGATE_TAG,
-  PENDING_APPROVAL_TAG,
-  SPLIT_PARENT_TAG,
-} from "../../lib/automation-constants";
+  TASK_STATUS,
+  TASK_TYPE,
+  AUTOMATION_STATE,
+  TaskDTO,
+  TaskType,
+  TaskStatus,
+} from "../../lib/types";
 
 const storyPoints = [1, 2, 3, 5, 8, 13, 21, 34];
 const taskTypeLabels: Record<TaskType, string> = {
@@ -363,8 +365,8 @@ export default function BacklogPage() {
             ? item.status === TASK_STATUS.BACKLOG
             : item.status === TASK_STATUS.SPRINT,
         )
-        .filter((item) => !item.tags?.includes(DELEGATE_TAG))
-        .filter((item) => !item.tags?.includes(SPLIT_PARENT_TAG)),
+        .filter((item) => item.automationState !== AUTOMATION_STATE.DELEGATED)
+        .filter((item) => item.automationState !== AUTOMATION_STATE.SPLIT_PARENT),
     [items, view],
   );
 
@@ -639,9 +641,13 @@ export default function BacklogPage() {
   const applySplit = async (item: TaskDTO) => {
     const suggestions = splitMap[item.id] ?? [];
     if (!suggestions.length) return;
-    const nextTags = Array.from(new Set([...(item.tags ?? []), SPLIT_PARENT_TAG]));
+    // Optimistic update
     setItems((prev) =>
-      prev.map((t) => (t.id === item.id ? { ...t, tags: nextTags } : t)),
+      prev.map((t) =>
+        t.id === item.id
+          ? { ...t, automationState: AUTOMATION_STATE.SPLIT_PARENT }
+          : t,
+      ),
     );
     setSplitMap((prev) => {
       const next = { ...prev };
@@ -676,7 +682,7 @@ export default function BacklogPage() {
     await fetch(`/api/tasks/${item.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tags: nextTags }),
+      body: JSON.stringify({ automationState: AUTOMATION_STATE.SPLIT_PARENT }),
     });
     await fetch("/api/ai/apply", {
       method: "POST",
@@ -915,7 +921,8 @@ export default function BacklogPage() {
 
       {items.filter(
         (item) =>
-          item.status === TASK_STATUS.BACKLOG && item.tags?.includes(DELEGATE_TAG),
+          item.status === TASK_STATUS.BACKLOG &&
+          item.automationState === AUTOMATION_STATE.DELEGATED,
       ).length ? (
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
@@ -925,7 +932,7 @@ export default function BacklogPage() {
                 items.filter(
                   (item) =>
                     item.status === TASK_STATUS.BACKLOG &&
-                    item.tags?.includes(DELEGATE_TAG),
+                    item.automationState === AUTOMATION_STATE.DELEGATED,
                 ).length
               }{" "}
               件
@@ -935,7 +942,8 @@ export default function BacklogPage() {
             {items
               .filter(
                 (item) =>
-                  item.status === TASK_STATUS.BACKLOG && item.tags?.includes(DELEGATE_TAG),
+                  item.status === TASK_STATUS.BACKLOG &&
+                  item.automationState === AUTOMATION_STATE.DELEGATED,
               )
               .map((item) => (
                 <div
@@ -968,17 +976,26 @@ export default function BacklogPage() {
         </section>
       ) : null}
 
-      {items.filter((item) => item.tags?.includes(PENDING_APPROVAL_TAG)).length ? (
+      {items.filter(
+        (item) => item.automationState === AUTOMATION_STATE.PENDING_SPLIT,
+      ).length ? (
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">自動分解 承認待ち</h2>
             <span className="text-xs text-slate-500">
-              {items.filter((item) => item.tags?.includes(PENDING_APPROVAL_TAG)).length} 件
+              {
+                items.filter(
+                  (item) => item.automationState === AUTOMATION_STATE.PENDING_SPLIT,
+                ).length
+              }{" "}
+              件
             </span>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {items
-              .filter((item) => item.tags?.includes(PENDING_APPROVAL_TAG))
+              .filter(
+                (item) => item.automationState === AUTOMATION_STATE.PENDING_SPLIT,
+              )
               .map((item) => (
                 <div
                   key={item.id}
@@ -1060,7 +1077,7 @@ export default function BacklogPage() {
                           <span className="border border-slate-200 bg-white px-2 py-1 text-slate-700">
                             リスク: {item.risk}
                           </span>
-                          {item.tags?.includes(PENDING_APPROVAL_TAG) ? (
+                          {item.automationState === AUTOMATION_STATE.PENDING_SPLIT ? (
                             <span className="border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700">
                               承認待ち
                             </span>
@@ -1297,16 +1314,16 @@ export default function BacklogPage() {
         </div>
       </section>
 
-      {items.filter((item) => item.tags?.includes(SPLIT_PARENT_TAG)).length ? (
+      {items.filter(
+        (item) => item.automationState === AUTOMATION_STATE.SPLIT_PARENT,
+      ).length ? (
         <section className="border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-slate-900">自動分解済み (元タスク)</h2>
             <span className="text-xs text-slate-500">
               {
                 items.filter(
-                  (item) =>
-                    item.tags?.includes(SPLIT_PARENT_TAG) &&
-                    !item.tags?.includes(PENDING_APPROVAL_TAG),
+                  (item) => item.automationState === AUTOMATION_STATE.SPLIT_PARENT,
                 ).length
               }{" "}
               件
@@ -1315,9 +1332,7 @@ export default function BacklogPage() {
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {items
               .filter(
-                (item) =>
-                  item.tags?.includes(SPLIT_PARENT_TAG) &&
-                  !item.tags?.includes(PENDING_APPROVAL_TAG),
+                (item) => item.automationState === AUTOMATION_STATE.SPLIT_PARENT,
               )
               .map((item) => (
                 <div

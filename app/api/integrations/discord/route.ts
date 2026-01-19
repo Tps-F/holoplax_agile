@@ -1,7 +1,6 @@
 import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
 import { applyAutomationForTask } from "../../../../lib/automation";
-import { PENDING_APPROVAL_TAG } from "../../../../lib/automation-constants";
 import { DiscordCreateTaskSchema } from "../../../../lib/contracts/integrations";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
@@ -64,7 +63,7 @@ export async function POST(request: Request) {
           risk,
           status: TASK_STATUS.BACKLOG,
           type: TASK_TYPE.PBI,
-          tags: [PENDING_APPROVAL_TAG], // default to approval flow for high-score cases
+          // automationState will be set by applyAutomationForTask based on score
           workspace: { connect: { id: workspaceId } },
           user: userId ? { connect: { id: userId } } : undefined,
         },

@@ -10,7 +10,10 @@ import { TaskUpdateSchema } from "../../../../lib/contracts/task";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
+import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, AutomationState } from "../../../../lib/types";
+
+const isAutomationState = (value: unknown): value is AutomationState =>
+  Object.values(AUTOMATION_STATE).includes(value as AutomationState);
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>
   Object.values(TASK_STATUS).includes(value as TaskStatus);
@@ -118,6 +121,11 @@ export async function PATCH(
       if (body.risk) data.risk = body.risk;
       if (body.type !== undefined) {
         data.type = isTaskType(body.type) ? body.type : TASK_TYPE.PBI;
+      }
+      if (body.automationState !== undefined) {
+        if (isAutomationState(body.automationState)) {
+          data.automationState = body.automationState;
+        }
       }
       if (body.dueDate !== undefined) {
         data.dueDate = body.dueDate ? new Date(body.dueDate) : null;

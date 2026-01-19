@@ -149,7 +149,7 @@ export async function POST(request: Request) {
         });
 
         await Promise.all(
-          suggestions.map((item) =>
+          suggestions.map((item: SplitItem) =>
             tx.task.create({
               data: {
                 title: item.title,
