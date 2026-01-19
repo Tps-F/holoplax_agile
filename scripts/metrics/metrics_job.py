@@ -27,6 +27,15 @@ METRICS = [
     MetricSpec("wip_avg_14d", "USER", "NUMBER", "daily", 14),
     MetricSpec("flow_state", "WORKSPACE", "NUMBER", "daily", 30),
     MetricSpec("ai_trust_state", "WORKSPACE", "NUMBER", "daily", 30),
+    # 提案タイプ別の受容率
+    MetricSpec("ai_score_accept_rate_30d", "USER", "RATIO", "daily", 30),
+    MetricSpec("ai_split_accept_rate_30d", "USER", "RATIO", "daily", 30),
+    MetricSpec("ai_tip_accept_rate_30d", "USER", "RATIO", "daily", 30),
+    # 修正率（適用したうち修正が入った割合）
+    MetricSpec("ai_score_modify_rate_30d", "USER", "RATIO", "daily", 30),
+    MetricSpec("ai_split_modify_rate_30d", "USER", "RATIO", "daily", 30),
+    # 反応速度（提案表示から反応までの中央値）
+    MetricSpec("ai_reaction_latency_p50_30d", "USER", "DURATION_MS", "daily", 30),
 ]
 
 
@@ -227,6 +236,70 @@ def compute_flow_state(lead_time_ms: float | None, wip: float, throughput: float
     return max(0, raw)
 
 
+def compute_suggestion_metrics_by_type(conn, user_id: str) -> dict:
+    """
+    タイプ別の受容率・修正率・反応速度を計算する
+
+    Returns:
+        dict with keys like ai_{type}_accept_rate_30d, ai_{type}_modify_rate_30d, ai_reaction_latency_p50_30d
+    """
+    cutoff = now_utc() - timedelta(days=30)
+
+    with conn.cursor() as cur:
+        # タイプ別・リアクション別の集計
+        cur.execute(
+            """
+            SELECT
+                s.type,
+                r.reaction,
+                COUNT(*) as count
+            FROM "AiSuggestionReaction" r
+            JOIN "AiSuggestion" s ON r."suggestionId" = s.id
+            WHERE r."userId" = %s AND r."createdAt" >= %s
+            GROUP BY s.type, r.reaction
+            """,
+            (user_id, cutoff),
+        )
+        rows = cur.fetchall()
+
+        # 反応速度の取得
+        cur.execute(
+            """
+            SELECT "latencyMs"
+            FROM "AiSuggestionReaction"
+            WHERE "userId" = %s AND "createdAt" >= %s AND "latencyMs" IS NOT NULL
+            """,
+            (user_id, cutoff),
+        )
+        latencies = [row[0] for row in cur.fetchall()]
+
+    # タイプ別に集計
+    by_type: dict[str, dict[str, int]] = {}
+    for suggestion_type, reaction, count in rows:
+        if suggestion_type not in by_type:
+            by_type[suggestion_type] = {"viewed": 0, "accepted": 0, "modified": 0, "rejected": 0, "ignored": 0}
+        by_type[suggestion_type][reaction.lower()] = count
+
+    # 受容率・修正率の計算
+    results: dict[str, float | None] = {}
+    for stype, counts in by_type.items():
+        viewed = counts["viewed"]
+        accepted = counts["accepted"]
+        modified = counts["modified"]
+        if viewed > 0:
+            accept_rate = (accepted + modified) / viewed
+            results[f"ai_{stype.lower()}_accept_rate_30d"] = accept_rate
+        if (accepted + modified) > 0:
+            modify_rate = modified / (accepted + modified)
+            results[f"ai_{stype.lower()}_modify_rate_30d"] = modify_rate
+
+    # 反応速度の中央値
+    if latencies:
+        results["ai_reaction_latency_p50_30d"] = median(latencies)
+
+    return results
+
+
 def compute_ai_trust_state(conn, workspace_id: str) -> float | None:
     cutoff = now_utc() - timedelta(days=30)
     with conn.cursor() as cur:
@@ -377,6 +450,18 @@ def main():
                 user_id,
                 float(wip),
             )
+
+            # 提案タイプ別メトリクス
+            suggestion_metrics = compute_suggestion_metrics_by_type(conn, user_id)
+            for metric_key, value in suggestion_metrics.items():
+                if (metric_key, "USER") in type_ids and value is not None:
+                    update_metric_and_claim(
+                        conn,
+                        type_ids[(metric_key, "USER")],
+                        "USER",
+                        user_id,
+                        float(value),
+                    )
 
         # Placeholder for AI trust state until approval/apply logs exist.
         for workspace_id in workspaces:

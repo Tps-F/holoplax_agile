@@ -1,5 +1,10 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, SEVERITY, TaskDTO } from "../../../lib/types";
+import {
+  trackSuggestionViewed,
+  trackSuggestionAccepted,
+  trackSuggestionRejected,
+} from "../../../lib/ai-reaction-tracker";
 
 type SplitSuggestion = {
   title: string;
@@ -46,6 +51,9 @@ export function useAiSuggestions({
   const [scoreLoadingId, setScoreLoadingId] = useState<string | null>(null);
   const [splitLoadingId, setSplitLoadingId] = useState<string | null>(null);
 
+  // 表示タイミングのトラッキング用
+  const viewedAtMap = useRef<Record<string, string>>({});
+
   const getSuggestion = async (
     title: string,
     description?: string,
@@ -64,6 +72,11 @@ export function useAiSuggestions({
               ...prev,
               [taskId]: { text: data.suggestion, suggestionId: data.suggestionId },
             }));
+            // Track VIEWED
+            const viewedAt = trackSuggestionViewed(data.suggestionId);
+            if (viewedAt) {
+              viewedAtMap.current[`tip_${taskId}`] = viewedAt;
+            }
             return;
           }
         }
@@ -80,6 +93,11 @@ export function useAiSuggestions({
           ...prev,
           [taskId]: { text: data.suggestion, suggestionId: data.suggestionId },
         }));
+        // Track VIEWED
+        const viewedAt = trackSuggestionViewed(data.suggestionId);
+        if (viewedAt) {
+          viewedAtMap.current[`tip_${taskId}`] = viewedAt;
+        }
       }
     } finally {
       setSuggestLoadingId(null);
@@ -110,6 +128,14 @@ export function useAiSuggestions({
           suggestionId: data.suggestionId,
         },
       }));
+      // Track VIEWED
+      const viewedAt = trackSuggestionViewed(data.suggestionId, {
+        taskType: item.type,
+        taskPoints: item.points,
+      });
+      if (viewedAt) {
+        viewedAtMap.current[`score_${item.id}`] = viewedAt;
+      }
     } finally {
       setScoreLoadingId(null);
     }
@@ -118,6 +144,11 @@ export function useAiSuggestions({
   const applyTipSuggestion = async (itemId: string) => {
     const suggestion = suggestionMap[itemId];
     if (!suggestion) return;
+    // Track ACCEPTED
+    trackSuggestionAccepted(
+      suggestion.suggestionId,
+      viewedAtMap.current[`tip_${itemId}`],
+    );
     await fetch("/api/ai/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -134,6 +165,11 @@ export function useAiSuggestions({
   const applyScoreSuggestion = async (itemId: string) => {
     const score = scoreMap[itemId];
     if (!score) return;
+    // Track ACCEPTED
+    trackSuggestionAccepted(
+      score.suggestionId,
+      viewedAtMap.current[`score_${itemId}`],
+    );
     await fetch("/api/ai/apply", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -171,6 +207,14 @@ export function useAiSuggestions({
           ...prev,
           [item.id]: data.suggestionId ?? null,
         }));
+        // Track VIEWED
+        const viewedAt = trackSuggestionViewed(data.suggestionId, {
+          taskType: item.type,
+          taskPoints: item.points,
+        });
+        if (viewedAt) {
+          viewedAtMap.current[`split_${item.id}`] = viewedAt;
+        }
       }
     } finally {
       setSplitLoadingId(null);
@@ -180,6 +224,12 @@ export function useAiSuggestions({
   const applySplit = async (item: TaskDTO, view: "product" | "sprint") => {
     const suggestions = splitMap[item.id] ?? [];
     if (!suggestions.length) return;
+    const suggestionId = splitSuggestionIdMap[item.id];
+    // Track ACCEPTED
+    trackSuggestionAccepted(
+      suggestionId,
+      viewedAtMap.current[`split_${item.id}`],
+    );
     // Optimistic update
     setItems((prev) =>
       prev.map((t) =>
@@ -229,10 +279,29 @@ export function useAiSuggestions({
       body: JSON.stringify({
         taskId: item.id,
         type: "SPLIT",
-        suggestionId: splitSuggestionIdMap[item.id] ?? null,
+        suggestionId: suggestionId ?? null,
       }),
     });
     await fetchTasks();
+  };
+
+  const rejectSplit = (itemId: string) => {
+    const suggestionId = splitSuggestionIdMap[itemId];
+    // Track REJECTED
+    trackSuggestionRejected(
+      suggestionId,
+      viewedAtMap.current[`split_${itemId}`],
+    );
+    setSplitMap((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+    setSplitSuggestionIdMap((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
   };
 
   return {
@@ -250,5 +319,6 @@ export function useAiSuggestions({
     applyScoreSuggestion,
     requestSplit,
     applySplit,
+    rejectSplit,
   };
 }

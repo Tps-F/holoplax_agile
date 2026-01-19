@@ -63,3 +63,26 @@ export const AiPrepActionSchema = z
     action: nonEmptyString("action is required"),
   })
   .passthrough();
+
+export const AiReactionSchema = z
+  .object({
+    suggestionId: nonEmptyString("suggestionId is required"),
+    reaction: z.enum(["VIEWED", "ACCEPTED", "MODIFIED", "REJECTED", "IGNORED"]),
+    // コンテキスト情報
+    context: z
+      .object({
+        taskType: z.string().optional(),
+        taskPoints: z.number().optional(),
+        hourOfDay: z.number().min(0).max(23).optional(),
+        dayOfWeek: z.number().min(0).max(6).optional(),
+        wipCount: z.number().optional(),
+        flowState: z.number().optional(),
+      })
+      .optional(),
+    // 修正の詳細（MODIFIEDの場合）
+    modification: z.record(z.string(), z.any()).optional().nullable(),
+    // タイミング
+    viewedAt: z.string().datetime().optional(),
+    reactedAt: z.string().datetime().optional(),
+  })
+  .passthrough();

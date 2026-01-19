@@ -26,6 +26,14 @@ enum AiSuggestionType {
   SPLIT
 }
 
+enum SuggestionReaction {
+  VIEWED    // 表示された
+  ACCEPTED  // そのまま適用
+  MODIFIED  // 修正して適用
+  REJECTED  // 明示的に却下
+  IGNORED   // 表示後、別の操作をした（暗黙の却下）
+}
+
 enum AiPrepType {
   EMAIL
   IMPLEMENTATION
@@ -156,6 +164,7 @@ model User {
   memoryMetrics            MemoryMetric[]
   memoryQuestions          MemoryQuestion[]
   automationStageHistories AutomationStageHistory[]
+  aiSuggestionReactions    AiSuggestionReaction[]
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
 }
@@ -248,6 +257,7 @@ model Workspace {
   memoryQuestions          MemoryQuestion[]
   focusQueues              FocusQueue[]
   automationStageHistories AutomationStageHistory[]
+  aiSuggestionReactions    AiSuggestionReaction[]
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
 }
@@ -411,18 +421,55 @@ model RoutineRule {
 }
 
 model AiSuggestion {
-  id               String           @id @default(uuid())
+  id               String                 @id @default(uuid())
   type             AiSuggestionType
   taskId           String?
-  task             Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task             Task?                  @relation(fields: [taskId], references: [id], onDelete: Cascade)
   inputTitle       String
   inputDescription String
   output           String
-  createdAt        DateTime         @default(now())
+  createdAt        DateTime               @default(now())
   userId           String?
-  user             User?            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user             User?                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspaceId      String?
-  workspace        Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace        Workspace?             @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  reactions        AiSuggestionReaction[]
+
+  @@index([type, createdAt])
+  @@index([userId, type, createdAt])
+}
+
+model AiSuggestionReaction {
+  id           String             @id @default(uuid())
+  suggestionId String
+  suggestion   AiSuggestion       @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+  reaction     SuggestionReaction
+
+  // コンテキスト情報
+  taskType     TaskType?
+  taskPoints   Int?
+  hourOfDay    Int?               // 0-23
+  dayOfWeek    Int?               // 0-6 (Sunday=0)
+  wipCount     Int?               // 反応時のWIP数
+  flowState    Float?             // 反応時のflow_state
+
+  // 修正の詳細（MODIFIEDの場合）
+  modification Json?
+
+  // タイミング
+  viewedAt     DateTime?
+  reactedAt    DateTime?
+  latencyMs    Int?               // 表示から反応までの時間（ミリ秒）
+
+  userId       String
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspaceId  String?
+  workspace    Workspace?         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt    DateTime           @default(now())
+
+  @@index([suggestionId])
+  @@index([userId, reaction, createdAt])
+  @@index([workspaceId, reaction, createdAt])
 }
 
 model AiPrepOutput {
