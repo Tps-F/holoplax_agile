@@ -1,4 +1,4 @@
-import { TaskStatus, TASK_STATUS } from "../types";
+import { TaskStatus, AutomationState, TASK_STATUS } from "../types";
 
 type DepNode = {
   dependsOnId: string;
@@ -16,6 +16,7 @@ type TaskWithDeps<T extends DepNode = DepNode> = {
   risk: string;
   status: TaskStatus;
   type?: string | null;
+  automationState?: AutomationState | null;
   routineRule?: { cadence: string; nextAt: Date } | null;
   parentId?: string | null;
   dueDate: Date | null;

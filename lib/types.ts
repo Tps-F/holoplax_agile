@@ -15,6 +15,17 @@ export const TASK_TYPE = {
 
 export type TaskType = (typeof TASK_TYPE)[keyof typeof TASK_TYPE];
 
+export const AUTOMATION_STATE = {
+  NONE: "NONE",
+  DELEGATED: "DELEGATED",
+  PENDING_SPLIT: "PENDING_SPLIT",
+  SPLIT_PARENT: "SPLIT_PARENT",
+  SPLIT_CHILD: "SPLIT_CHILD",
+  SPLIT_REJECTED: "SPLIT_REJECTED",
+} as const;
+
+export type AutomationState = (typeof AUTOMATION_STATE)[keyof typeof AUTOMATION_STATE];
+
 export type TaskDTO = {
   id: string;
   title: string;
@@ -26,6 +37,7 @@ export type TaskDTO = {
   risk: string;
   status: TaskStatus;
   type?: TaskType;
+  automationState?: AutomationState;
   routineCadence?: "DAILY" | "WEEKLY" | null;
   routineNextAt?: string | Date | null;
   parentId?: string | null;

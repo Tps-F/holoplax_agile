@@ -1,17 +1,6 @@
-export const DELEGATE_TAG = "auto-delegate";
+// User preference tag (not an automation state)
 export const NO_DELEGATE_TAG = "no-delegate";
-export const SPLIT_PARENT_TAG = "auto-split-parent";
-export const SPLIT_CHILD_TAG = "auto-split-child";
-export const PENDING_APPROVAL_TAG = "automation-needs-approval";
-export const SPLIT_REJECTED_TAG = "auto-split-rejected";
 
-export const withTag = (tags: string[] = [], tag: string) => {
-  const set = new Set(tags);
-  set.add(tag);
-  return Array.from(set);
-};
-
-export const withoutTags = (tags: string[] = [], remove: string[]) => {
-  const removeSet = new Set(remove);
-  return tags.filter((tag) => !removeSet.has(tag));
-};
+// Helper to check if task has no-delegate preference
+export const hasNoDelegateTag = (tags: string[] | null | undefined): boolean =>
+  Array.isArray(tags) && tags.includes(NO_DELEGATE_TAG);

@@ -3,20 +3,12 @@ import { requireWorkspaceAuth } from "../../../../lib/api-guards";
 import { ok } from "../../../../lib/api-response";
 import type { SplitItem } from "../../../../lib/ai-suggestions";
 import { generateSplitSuggestions } from "../../../../lib/ai-suggestions";
-import {
-  PENDING_APPROVAL_TAG,
-  SPLIT_REJECTED_TAG,
-  SPLIT_CHILD_TAG,
-  SPLIT_PARENT_TAG,
-  withTag,
-  withoutTags,
-} from "../../../../lib/automation-constants";
 import { sanitizeSplitSuggestion } from "../../../../lib/ai-normalization";
 import { AutomationApprovalSchema } from "../../../../lib/contracts/automation";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
+import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE } from "../../../../lib/types";
 import { logAudit } from "../../../../lib/audit";
 
 const STAGE_COOLDOWN_DAYS = 7;
@@ -111,24 +103,20 @@ export async function POST(request: Request) {
           points: true,
           urgency: true,
           risk: true,
-          tags: true,
+          automationState: true,
         },
       });
       if (!task) return errors.notFound("task not found");
 
       if (action === "reject") {
-        const nextTags = withTag(
-          withoutTags(task.tags ?? [], [PENDING_APPROVAL_TAG, SPLIT_PARENT_TAG]),
-          SPLIT_REJECTED_TAG,
-        );
         await prisma.task.update({
           where: { id: task.id },
-          data: { tags: nextTags },
+          data: { automationState: AUTOMATION_STATE.SPLIT_REJECTED },
         });
         return ok({ status: "rejected" });
       }
 
-      if (!task.tags?.includes(PENDING_APPROVAL_TAG)) {
+      if (task.automationState !== AUTOMATION_STATE.PENDING_SPLIT) {
         return ok({ status: "no-pending", created: 0 });
       }
 
@@ -155,13 +143,9 @@ export async function POST(request: Request) {
         fallbackResult.suggestions,
       );
       await prisma.$transaction(async (tx) => {
-        const nextTags = withTag(
-          withoutTags(task.tags ?? [], [PENDING_APPROVAL_TAG, SPLIT_REJECTED_TAG]),
-          SPLIT_PARENT_TAG,
-        );
         await tx.task.update({
           where: { id: task.id },
-          data: { tags: nextTags },
+          data: { automationState: AUTOMATION_STATE.SPLIT_PARENT },
         });
 
         await Promise.all(
@@ -174,7 +158,7 @@ export async function POST(request: Request) {
                 urgency: item.urgency ?? "中",
                 risk: item.risk ?? "中",
                 status: TASK_STATUS.BACKLOG,
-                tags: withTag([], SPLIT_CHILD_TAG),
+                automationState: AUTOMATION_STATE.SPLIT_CHILD,
                 type: TASK_TYPE.TASK,
                 parentId: task.id,
                 workspaceId,
