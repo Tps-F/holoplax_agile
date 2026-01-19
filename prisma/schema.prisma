@@ -109,6 +109,15 @@ enum MemoryQuestionStatus {
   HOLD
 }
 
+enum AutomationState {
+  NONE
+  DELEGATED
+  PENDING_SPLIT
+  SPLIT_PARENT
+  SPLIT_CHILD
+  SPLIT_REJECTED
+}
+
 model User {
   id                       String                   @id @default(cuid())
   name                     String?
@@ -286,6 +295,7 @@ model Task {
   risk             String
   status           TaskStatus        @default(BACKLOG)
   type             TaskType          @default(PBI)
+  automationState  AutomationState   @default(NONE)
   parentId         String?
   sprintId         String?
   dueDate          DateTime?
