@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkspaceId } from "../components/use-workspace-id";
@@ -45,6 +45,8 @@ const checklistFromText = (text: string) =>
 const checklistToText = (
   checklist?: { id: string; text: string; done: boolean }[] | null,
 ) => (checklist ?? []).map((item) => item.text).join("\n");
+const urgencyOptions = ["低", "中", "高"] as const;
+const riskOptions = ["低", "中", "高"] as const;
 type SplitSuggestion = {
   title: string;
   points: number;
@@ -109,8 +111,7 @@ export default function BacklogPage() {
   const { workspaceId, ready } = useWorkspaceId();
   const [items, setItems] = useState<TaskDTO[]>([]);
   const [view, setView] = useState<"product" | "sprint">("product");
-  const [members, setMembers] = useState<MemberRow[]>([]);
-  const [form, setForm] = useState({
+  const createDefaultForm = () => ({
     title: "",
     description: "",
     definitionOfDone: "",
@@ -118,7 +119,7 @@ export default function BacklogPage() {
     points: 3,
     urgency: "中",
     risk: "中",
-    type: TASK_TYPE.PBI as TaskType,
+    type: view === "sprint" ? TASK_TYPE.TASK : TASK_TYPE.PBI,
     parentId: "",
     dueDate: "",
     assigneeId: "",
@@ -126,6 +127,8 @@ export default function BacklogPage() {
     routineCadence: "NONE",
     dependencyIds: [] as string[],
   });
+  const [form, setForm] = useState(createDefaultForm);
+  const [members, setMembers] = useState<MemberRow[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [suggestion, setSuggestion] = useState<string | null>(null);
   const [suggestionMap, setSuggestionMap] = useState<
@@ -169,7 +172,6 @@ export default function BacklogPage() {
   const [suggestLoadingId, setSuggestLoadingId] = useState<string | null>(null);
   const [splitLoadingId, setSplitLoadingId] = useState<string | null>(null);
   const [scoreLoadingId, setScoreLoadingId] = useState<string | null>(null);
-  const [scoreLoading, setScoreLoading] = useState(false);
   const [approvalLoadingId, setApprovalLoadingId] = useState<string | null>(null);
   const [prepModalOpen, setPrepModalOpen] = useState(false);
   const [prepTask, setPrepTask] = useState<TaskDTO | null>(null);
@@ -178,6 +180,93 @@ export default function BacklogPage() {
   const [prepLoading, setPrepLoading] = useState(false);
   const [prepFetchLoading, setPrepFetchLoading] = useState(false);
   const [prepActionLoadingId, setPrepActionLoadingId] = useState<string | null>(null);
+  const [creationStep, setCreationStep] = useState<1 | 2 | 3>(1);
+  const [aiQuestions, setAiQuestions] = useState<string[]>([]);
+  const [aiAnswers, setAiAnswers] = useState<Record<number, string>>({});
+  const [estimatedScore, setEstimatedScore] = useState<
+    { points: number; urgency: string; risk: string; reason?: string } | null
+  >(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [definitionError, setDefinitionError] = useState<string | null>(null);
+  const resetFormToDefaults = () => setForm(createDefaultForm());
+  const resetAiCreationState = () => {
+    setCreationStep(1);
+    setAiQuestions([]);
+    setAiAnswers({});
+    setEstimatedScore(null);
+    setAiError(null);
+    setScoreHint(null);
+    setAiLoading(false);
+    setDefinitionError(null);
+  };
+  const openAddModal = () => {
+    resetFormToDefaults();
+    resetAiCreationState();
+    setModalOpen(true);
+  };
+  const closeModal = () => {
+    setModalOpen(false);
+    resetAiCreationState();
+    resetFormToDefaults();
+  };
+  const handleAiAnswerChange = (index: number, value: string) => {
+    setAiAnswers((prev) => ({ ...prev, [index]: value }));
+  };
+
+  const runAiSupport = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    try {
+      const scoreRes = await fetch("/api/ai/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: form.title.trim(),
+          description: form.description.trim(),
+        }),
+      });
+      if (!scoreRes.ok) {
+        throw new Error("score");
+      }
+      const scoreData = await scoreRes.json();
+      setEstimatedScore(scoreData);
+      setForm((prev) => ({
+        ...prev,
+        points: Number(scoreData.points) || prev.points,
+        urgency: scoreData.urgency ?? prev.urgency,
+        risk: scoreData.risk ?? prev.risk,
+      }));
+      setScoreHint(scoreData.reason ?? `AI推定スコア: ${scoreData.score ?? ""}`);
+      const suggestionRes = await fetch("/api/ai/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: form.title.trim(),
+          description: form.description.trim(),
+        }),
+      });
+      let suggestionText = "";
+      if (suggestionRes.ok) {
+        const suggestionData = await suggestionRes.json().catch(() => ({}));
+        suggestionText = suggestionData?.suggestion ?? "";
+      }
+      setAiQuestions([
+        suggestionText || "このタスクの詳細／背景を教えてください。",
+        scoreData.reason
+          ? `AI推定理由: ${scoreData.reason}`
+          : "補足情報があれば教えてください。",
+      ]);
+    } catch {
+      setAiError("AI支援に失敗しました。手動で入力できます。");
+      setAiQuestions([
+        "このタスクの目的は何ですか？",
+        "優先順位が高い理由は何ですか？",
+      ]);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const fetchTasksByStatus = useCallback(async (statuses: TaskStatus[]) => {
     const params = statuses.map((status) => `status=${encodeURIComponent(status)}`).join("&");
@@ -214,6 +303,37 @@ export default function BacklogPage() {
     const data = await res.json();
     setMembers(data.members ?? []);
   }, [ready, workspaceId]);
+
+  const handleStepOneNext = () => {
+    if (!form.title.trim()) {
+      setAiError("タイトルを入力してください。");
+      return;
+    }
+    setAiError(null);
+    setCreationStep(2);
+    void runAiSupport();
+  };
+
+  const handleStepTwoNext = () => {
+    if (!form.definitionOfDone.trim()) {
+      setDefinitionError("完了条件を入力してください。");
+      return;
+    }
+    setDefinitionError(null);
+    setCreationStep(3);
+  };
+
+  const buildAiSupplementText = () => {
+    const extras = aiQuestions
+      .map((question, index) => {
+        const answer = aiAnswers[index]?.trim();
+        if (!answer) return null;
+        return `${question}\n回答: ${answer}`;
+      })
+      .filter(Boolean);
+    if (!extras.length) return "";
+    return `AI補足\n${extras.join("\n\n")}`;
+  };
 
   useEffect(() => {
     void fetchTasks();
@@ -278,6 +398,13 @@ export default function BacklogPage() {
     if (!form.title.trim()) return;
     const statusValue =
       view === "sprint" ? TASK_STATUS.SPRINT : TASK_STATUS.BACKLOG;
+    const baseDescription = form.description.trim();
+    const aiSupplement = buildAiSupplementText();
+    const finalDescription = aiSupplement
+      ? baseDescription
+        ? `${baseDescription}\n\n${aiSupplement}`
+        : aiSupplement
+      : baseDescription;
     setAddLoading(true);
     try {
       const res = await fetch("/api/tasks", {
@@ -285,7 +412,7 @@ export default function BacklogPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.title.trim(),
-          description: form.description.trim(),
+          description: finalDescription,
           definitionOfDone: form.definitionOfDone.trim(),
           checklist: checklistFromText(form.checklistText),
           points: Number(form.points),
@@ -311,23 +438,7 @@ export default function BacklogPage() {
           // しきい値超過の場合は即座に分解案を取得して表示
           void requestSplit(data.task);
         }
-        setForm({
-          title: "",
-          description: "",
-          definitionOfDone: "",
-          checklistText: "",
-          points: 3,
-          urgency: "中",
-          risk: "中",
-          type: view === "sprint" ? TASK_TYPE.TASK : TASK_TYPE.PBI,
-          parentId: "",
-          dueDate: "",
-          assigneeId: "",
-          tags: "",
-          routineCadence: "NONE",
-          dependencyIds: [],
-        });
-        setModalOpen(false);
+        closeModal();
       } else {
         const data = await res.json().catch(() => ({}));
         window.alert(data?.error?.message ?? "タスクの追加に失敗しました。");
@@ -792,12 +903,7 @@ export default function BacklogPage() {
             <button
               onClick={() => {
                 fetchTasks();
-                setForm((prev) => ({
-                  ...prev,
-                  type: view === "sprint" ? TASK_TYPE.TASK : TASK_TYPE.PBI,
-                  parentId: "",
-                }));
-                setModalOpen(true);
+                openAddModal();
               }}
               className="bg-[#2323eb] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[#2323eb]/30"
             >
@@ -1183,7 +1289,7 @@ export default function BacklogPage() {
                         </div>
                       ) : null}
                     </div>
-                  ))}
+                    ))}
                 </div>
               </div>
             );
@@ -1242,232 +1348,358 @@ export default function BacklogPage() {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-900">タスクを追加</h3>
               <button
-                onClick={() => setModalOpen(false)}
+                onClick={closeModal}
                 className="text-sm text-slate-500 transition hover:text-slate-800"
               >
                 閉じる
               </button>
             </div>
-            <div className="mt-4 grid gap-3">
-              <input
-                value={form.title}
-                onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder="タイトル"
-                className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-              />
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
-                placeholder="概要（任意）"
-                rows={3}
-                className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-              />
-              <input
-                value={form.definitionOfDone}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, definitionOfDone: e.target.value }))
-                }
-                placeholder="完了条件（DoD）"
-                className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-              />
-              <textarea
-                value={form.checklistText}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, checklistText: e.target.value }))
-                }
-                placeholder="チェックリスト（1行1項目）"
-                rows={3}
-                className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-              />
-              <div className="grid gap-3 sm:grid-cols-3">
-                <label className="grid gap-1 text-xs text-slate-500">
-                  ポイント
-                  <select
-                    value={form.points}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, points: Number(e.target.value) || 1 }))
-                    }
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+            <p className="text-xs text-slate-500 mt-2">
+              Step {creationStep}/3 -{" "}
+              {creationStep === 1
+                ? "まずは要件と背景を教えてください。"
+                : creationStep === 2
+                ? "どうやったら終わるかを教えてください。"
+                : "情報を確認してタスクを仕上げます。"}
+            </p>
+
+            {creationStep === 1 ? (
+              <div className="mt-4 grid gap-3">
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))}
+                  placeholder="タイトル"
+                  className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                />
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="概要（任意）"
+                  rows={4}
+                  className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                />
+                {aiError ? (
+                  <p className="text-xs text-rose-600">{aiError}</p>
+                ) : null}
+                <div className="mt-4 flex items-center justify-between">
+                  <button
+                    onClick={closeModal}
+                    className="border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
                   >
-                    {storyPoints.map((pt) => (
-                      <option key={pt} value={pt}>
-                        {pt} pt
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-1 text-xs text-slate-500">
-                  緊急度
-                  <select
-                    value={form.urgency}
-                    onChange={(e) => setForm((p) => ({ ...p, urgency: e.target.value }))}
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    キャンセル
+                  </button>
+                  <LoadingButton
+                    onClick={handleStepOneNext}
+                    loading={aiLoading}
+                    className="bg-[#2323eb] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[#2323eb]/30 disabled:opacity-60"
                   >
-                    {["低", "中", "高"].map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-1 text-xs text-slate-500">
-                  リスク
-                  <select
-                    value={form.risk}
-                    onChange={(e) => setForm((p) => ({ ...p, risk: e.target.value }))}
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                  >
-                    {["低", "中", "高"].map((v) => (
-                      <option key={v}>{v}</option>
-                    ))}
-                  </select>
-                </label>
+                    次へ
+                  </LoadingButton>
+                </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-2">
+            ) : creationStep === 2 ? (
+              <div className="mt-4 grid gap-3">
+                {estimatedScore ? (
+                  <div className="border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                    <p className="font-semibold text-slate-900">
+                      AIがポイント・緊急度・リスクを先行推定済みです。
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      {`推定: ${estimatedScore.points} pt / 緊急度: ${estimatedScore.urgency} / リスク: ${estimatedScore.risk}`}
+                    </p>
+                  </div>
+                ) : null}
+                <p className="text-sm text-slate-700">
+                  このタスクを終えるために必要なことを教えてください。
+                </p>
+                <textarea
+                  value={form.definitionOfDone}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, definitionOfDone: e.target.value }))
+                  }
+                  placeholder="どうやったら終わる？"
+                  rows={4}
+                  className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                />
+                {definitionError ? (
+                  <p className="text-xs text-rose-600">{definitionError}</p>
+                ) : null}
+                <div className="mt-4 border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-700">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    AIの追加質問
+                  </p>
+                  <div className="mt-3 grid gap-3">
+                    {aiQuestions.length ? (
+                      aiQuestions.map((question, index) => (
+                        <div key={`${question}-${index}`} className="grid gap-2">
+                          <p className="text-xs text-slate-600">{question}</p>
+                          <textarea
+                            value={aiAnswers[index] ?? ""}
+                            onChange={(e) => handleAiAnswerChange(index, e.target.value)}
+                            rows={2}
+                            className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                            placeholder="回答を入力（任意）"
+                          />
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-xs text-slate-500">
+                        AIの質問を生成中です。少々お待ちください。
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-between">
+                  <button
+                    onClick={() => {
+                      setCreationStep(1);
+                      setDefinitionError(null);
+                    }}
+                    className="border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
+                  >
+                    戻る
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStepTwoNext}
+                    className="bg-[#2323eb] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[#2323eb]/30 disabled:opacity-60"
+                  >
+                    次へ
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-3">
+                {estimatedScore ? (
+                  <div className="border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                    <p className="font-semibold text-slate-900">
+                      AI予測を踏まえて詳細を整えています。
+                    </p>
+                    <p className="mt-1 text-[11px] text-slate-500">
+                      {`推定: ${estimatedScore.points} pt / 緊急度: ${estimatedScore.urgency} / リスク: ${estimatedScore.risk}`}
+                    </p>
+                  </div>
+                ) : null}
+                <div className="border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+                  <p className="font-semibold text-slate-900">完了条件</p>
+                  <p className="mt-1 whitespace-pre-wrap">
+                    {form.definitionOfDone || "未入力のまま進めることもできます。"}
+                  </p>
+                </div>
+                <div className="grid gap-4">
+                  <div className="grid gap-1 text-xs text-slate-500">
+                    <span>ポイント</span>
+                    <div className="flex flex-wrap gap-2">
+                      {storyPoints.map((pt) => (
+                        <button
+                          key={pt}
+                          type="button"
+                          onClick={() => setForm((p) => ({ ...p, points: pt }))}
+                          aria-pressed={form.points === pt}
+                          className={`border px-3 py-1 text-sm transition ${
+                            form.points === pt
+                              ? "border-[#2323eb] bg-[#2323eb]/10 text-[#2323eb]"
+                              : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                          }`}
+                        >
+                          {pt} pt
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid gap-2 text-xs text-slate-500">
+                    <div className="flex items-end gap-4">
+                      <div className="flex-1 min-w-0">
+                        <span>緊急度</span>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {urgencyOptions.map((option) => (
+                            <button
+                              key={`urgency-${option}`}
+                              type="button"
+                              onClick={() => setForm((p) => ({ ...p, urgency: option }))}
+                              aria-pressed={form.urgency === option}
+                              className={`border px-3 py-1 text-sm transition ${
+                                form.urgency === option
+                                  ? "border-[#2323eb] bg-[#2323eb]/10 text-[#2323eb]"
+                                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                              }`}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span>リスク</span>
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {riskOptions.map((option) => (
+                            <button
+                              key={`risk-${option}`}
+                              type="button"
+                              onClick={() => setForm((p) => ({ ...p, risk: option }))}
+                              aria-pressed={form.risk === option}
+                              className={`border px-3 py-1 text-sm transition ${
+                                form.risk === option
+                                  ? "border-[#2323eb] bg-[#2323eb]/10 text-[#2323eb]"
+                                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                              }`}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    種別
+                    <select
+                      value={form.type}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, type: e.target.value as TaskType }))
+                      }
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    >
+                      {taskTypeOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    親アイテム
+                    <select
+                      value={form.parentId}
+                      onChange={(e) => setForm((p) => ({ ...p, parentId: e.target.value }))}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    >
+                      <option value="">未設定</option>
+                      {parentCandidates.map((candidate) => (
+                        <option key={candidate.id} value={candidate.id}>
+                          {candidate.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                {form.type === TASK_TYPE.ROUTINE ? (
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    ルーティン周期
+                    <select
+                      value={form.routineCadence}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, routineCadence: e.target.value }))
+                      }
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    >
+                      <option value="DAILY">毎日</option>
+                      <option value="WEEKLY">毎週</option>
+                      <option value="NONE">なし</option>
+                    </select>
+                  </label>
+                ) : null}
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    期限
+                    <input
+                      type="date"
+                      value={form.dueDate}
+                      onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    担当
+                    <select
+                      value={form.assigneeId}
+                      onChange={(e) => setForm((p) => ({ ...p, assigneeId: e.target.value }))}
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    >
+                      <option value="">未設定</option>
+                      {members.map((member) => (
+                        <option key={member.id} value={member.id}>
+                          {member.name ?? member.email ?? member.id}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-500">
+                    タグ
+                    <input
+                      value={form.tags}
+                      onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
+                      placeholder="ui, sprint"
+                      className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                    />
+                  </label>
+                </div>
                 <label className="grid gap-1 text-xs text-slate-500">
-                  種別
+                  依存タスク
                   <select
-                    value={form.type}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, type: e.target.value as TaskType }))
-                    }
+                    multiple
+                    value={form.dependencyIds}
+                    onChange={(e) => {
+                      const selected = Array.from(e.target.selectedOptions).map(
+                        (option) => option.value,
+                      );
+                      setForm((p) => ({ ...p, dependencyIds: selected }));
+                    }}
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   >
-                    {taskTypeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-1 text-xs text-slate-500">
-                  親アイテム
-                  <select
-                    value={form.parentId}
-                    onChange={(e) => setForm((p) => ({ ...p, parentId: e.target.value }))}
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                  >
-                    <option value="">未設定</option>
-                    {parentCandidates.map((candidate) => (
+                    {items.map((candidate) => (
                       <option key={candidate.id} value={candidate.id}>
                         {candidate.title}
                       </option>
                     ))}
                   </select>
-                </label>
-              </div>
-              {form.type === TASK_TYPE.ROUTINE ? (
-                <label className="grid gap-1 text-xs text-slate-500">
-                  ルーティン周期
-                  <select
-                    value={form.routineCadence}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, routineCadence: e.target.value }))
-                    }
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                  <button
+                    type="button"
+                    onClick={() => setForm((p) => ({ ...p, dependencyIds: [] }))}
+                    className="w-fit text-[11px] text-slate-500 transition hover:text-[#2323eb]"
                   >
-                    <option value="DAILY">毎日</option>
-                    <option value="WEEKLY">毎週</option>
-                    <option value="NONE">なし</option>
-                  </select>
+                    選択を解除
+                  </button>
                 </label>
-              ) : null}
-              <div className="grid gap-3 sm:grid-cols-3">
-                <label className="grid gap-1 text-xs text-slate-500">
-                  期限
-                  <input
-                    type="date"
-                    value={form.dueDate}
-                    onChange={(e) => setForm((p) => ({ ...p, dueDate: e.target.value }))}
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                  />
-                </label>
-                <label className="grid gap-1 text-xs text-slate-500">
-                  担当
-                  <select
-                    value={form.assigneeId}
-                    onChange={(e) => setForm((p) => ({ ...p, assigneeId: e.target.value }))}
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
+                {scoreHint ? (
+                  <div className="border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+                    {scoreHint}
+                  </div>
+                ) : null}
+                {suggestion ? (
+                  <div className="border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800">
+                    {suggestion}
+                  </div>
+                ) : null}
+                <div className="mt-4 flex items-center justify-between">
+                  <button
+                    onClick={() => {
+                      setCreationStep(2);
+                      setDefinitionError(null);
+                    }}
+                    className="border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
                   >
-                    <option value="">未設定</option>
-                    {members.map((member) => (
-                      <option key={member.id} value={member.id}>
-                        {member.name ?? member.email ?? member.id}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="grid gap-1 text-xs text-slate-500">
-                  タグ
-                  <input
-                    value={form.tags}
-                    onChange={(e) => setForm((p) => ({ ...p, tags: e.target.value }))}
-                    placeholder="ui, sprint"
-                    className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                  />
-                </label>
-              </div>
-              <label className="grid gap-1 text-xs text-slate-500">
-                依存タスク
-                <select
-                  multiple
-                  value={form.dependencyIds}
-                  onChange={(e) => {
-                    const selected = Array.from(e.target.selectedOptions).map(
-                      (option) => option.value,
-                    );
-                    setForm((p) => ({ ...p, dependencyIds: selected }));
-                  }}
-                  className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
-                >
-                  {items.map((candidate) => (
-                    <option key={candidate.id} value={candidate.id}>
-                      {candidate.title}
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  onClick={() => setForm((p) => ({ ...p, dependencyIds: [] }))}
-                  className="w-fit text-[11px] text-slate-500 transition hover:text-[#2323eb]"
-                >
-                  選択を解除
-                </button>
-              </label>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={addItem}
-                  disabled={addLoading}
-                  className="bg-[#2323eb] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[#2323eb]/30 disabled:opacity-60"
-                >
-                  <span className="inline-flex items-center gap-2">
-                    {addLoading ? (
-                      <span className="inline-flex items-center">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
-                      </span>
-                    ) : null}
-                    追加する
-                  </span>
-                </button>
-                <LoadingButton
-                  onClick={estimateScore}
-                  disabled={scoreLoading}
-                  loading={scoreLoading}
-                  className="inline-flex items-center gap-2 border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb] disabled:opacity-60"
-                >
-                  {!scoreLoading ? <Sparkles size={16} /> : null}
-                  AIでスコア推定
-                </LoadingButton>
-              </div>
-              {scoreHint ? (
-                <div className="border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
-                  {scoreHint}
+                    戻る
+                  </button>
+                  <LoadingButton
+                    onClick={addItem}
+                    loading={addLoading}
+                    className="bg-[#2323eb] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md hover:shadow-[#2323eb]/30 disabled:opacity-60"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      {addLoading ? (
+                        <span className="inline-flex items-center">
+                          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/60 border-t-transparent" />
+                        </span>
+                      ) : null}
+                      追加する
+                    </span>
+                  </LoadingButton>
                 </div>
-              ) : null}
-              {suggestion ? (
-                <div className="border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-800">
-                  {suggestion}
-                </div>
-              ) : null}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       ) : null}

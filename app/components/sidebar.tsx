@@ -32,10 +32,10 @@ const navSections: {
   {
     heading: "タスク管理",
     items: [
+      { label: "レビュー", href: "/review", icon: LayoutDashboard, tooltip: "ベロシティや完了タスクを振り返る" },
       { label: "バックログ", href: "/backlog", icon: Inbox, tooltip: "TODOを整理して次に着手する候補を決める" },
       { label: "スプリント", href: "/sprint", icon: KanbanSquare, tooltip: "今週のスプリントと容量管理" },
       { label: "カンバン", href: "/kanban", icon: KanbanSquare, tooltip: "ステータスをドラッグして進捗を動かす" },
-      { label: "レビュー", href: "/review", icon: LayoutDashboard, tooltip: "ベロシティや完了タスクを振り返る" },
     ],
   },
   {
