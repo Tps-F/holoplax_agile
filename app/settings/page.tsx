@@ -1,7 +1,7 @@
 "use client";
 
 import { signOut, useSession } from "next-auth/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useWorkspaceId } from "../components/use-workspace-id";
 
@@ -338,6 +338,7 @@ export default function SettingsPage() {
   }: {
     type: MemoryTypeRow;
     claim?: MemoryClaimRow;
+    value?: string;
     isEditing: boolean;
     onEdit: () => void;
     onCancel: () => void;
@@ -345,7 +346,9 @@ export default function SettingsPage() {
     onRemove: () => void;
     saving: boolean;
     removing?: boolean;
-    renderInput: () => JSX.Element;
+    onDraftChange?: (value: string) => void;
+    renderInput: () => ReactNode;
+    currentValue?: string;
   }) => (
     <div className="border border-slate-200 bg-slate-50 px-4 py-3">
       <div className="flex items-start justify-between gap-3">
