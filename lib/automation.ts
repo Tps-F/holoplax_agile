@@ -2,7 +2,7 @@ import prisma from "./prisma";
 import { generateSplitSuggestions } from "./ai-suggestions";
 import { requestAiChat } from "./ai-provider";
 import type { AiUsageContext } from "./ai-usage";
-import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE } from "./types";
+import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, SEVERITY } from "./types";
 import { hasNoDelegateTag } from "./automation-constants";
 
 const scoreFromPoints = (points: number) =>
@@ -217,8 +217,8 @@ export async function applyAutomationForTask(params: {
             title: item.title,
             description: item.detail ?? "",
             points: Number(item.points) || 1,
-            urgency: item.urgency ?? "中",
-            risk: item.risk ?? "中",
+            urgency: item.urgency ?? SEVERITY.MEDIUM,
+            risk: item.risk ?? SEVERITY.MEDIUM,
             status: TASK_STATUS.BACKLOG,
             automationState: AUTOMATION_STATE.SPLIT_CHILD,
             type: TASK_TYPE.TASK,
