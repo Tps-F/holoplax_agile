@@ -1,7 +1,5 @@
 import { storyPointOptions } from "./points";
-
-export type PriorityLevel = "低" | "中" | "高";
-const PRIORITY_LEVELS: PriorityLevel[] = ["低", "中", "高"];
+import { SEVERITY, Severity, SEVERITY_FROM_LABEL } from "./types";
 
 const toNumber = (value: unknown) => {
   const num = Number(value);
@@ -29,13 +27,27 @@ const toStringValue = (value: unknown) => {
   return String(value).trim();
 };
 
-export const normalizePriorityLevel = (value: unknown, fallback: PriorityLevel = "中") => {
-  const candidate = toStringValue(value);
-  if (PRIORITY_LEVELS.includes(candidate as PriorityLevel)) {
-    return candidate as PriorityLevel;
+// Maps both Japanese (低/中/高) and English (LOW/MEDIUM/HIGH) to Severity enum
+export const normalizeSeverity = (value: unknown, fallback: Severity = SEVERITY.MEDIUM): Severity => {
+  const candidate = toStringValue(value).toUpperCase();
+
+  // Direct enum value
+  if (candidate === SEVERITY.LOW || candidate === SEVERITY.MEDIUM || candidate === SEVERITY.HIGH) {
+    return candidate as Severity;
   }
+
+  // Japanese label
+  const rawCandidate = toStringValue(value);
+  if (SEVERITY_FROM_LABEL[rawCandidate]) {
+    return SEVERITY_FROM_LABEL[rawCandidate];
+  }
+
   return fallback;
 };
+
+// Deprecated: use normalizeSeverity instead
+// Kept for backwards compatibility during migration
+export const normalizePriorityLevel = normalizeSeverity;
 
 export const sanitizeSplitSuggestion = (item: {
   title: string;
@@ -46,7 +58,7 @@ export const sanitizeSplitSuggestion = (item: {
 }) => ({
   title: toStringValue(item.title),
   points: normalizeStoryPoint(item.points),
-  urgency: normalizePriorityLevel(item.urgency),
-  risk: normalizePriorityLevel(item.risk),
+  urgency: normalizeSeverity(item.urgency),
+  risk: normalizeSeverity(item.risk),
   detail: toStringValue(item.detail),
 });

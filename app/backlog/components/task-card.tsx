@@ -6,8 +6,10 @@ import {
   TASK_STATUS,
   TASK_TYPE,
   AUTOMATION_STATE,
+  SEVERITY_LABELS,
   TaskDTO,
   TaskType,
+  Severity,
 } from "../../../lib/types";
 
 const taskTypeLabels: Record<TaskType, string> = {
@@ -103,10 +105,10 @@ export function TaskCard({
             {item.points} pt
           </span>
           <span className="border border-slate-200 bg-white px-2 py-1 text-slate-700">
-            緊急度: {item.urgency}
+            緊急度: {SEVERITY_LABELS[item.urgency as Severity] ?? item.urgency}
           </span>
           <span className="border border-slate-200 bg-white px-2 py-1 text-slate-700">
-            リスク: {item.risk}
+            リスク: {SEVERITY_LABELS[item.risk as Severity] ?? item.risk}
           </span>
           {item.automationState === AUTOMATION_STATE.PENDING_SPLIT ? (
             <span className="border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700">
@@ -255,10 +257,10 @@ export function TaskCard({
               {score.points} pt
             </span>
             <span className="border border-slate-200 px-2 py-1">
-              緊急度: {score.urgency}
+              緊急度: {SEVERITY_LABELS[score.urgency as Severity] ?? score.urgency}
             </span>
             <span className="border border-slate-200 px-2 py-1">
-              リスク: {score.risk}
+              リスク: {SEVERITY_LABELS[score.risk as Severity] ?? score.risk}
             </span>
           </div>
           {score.reason ? (
@@ -290,10 +292,10 @@ export function TaskCard({
                     {split.points} pt
                   </span>
                   <span className="border border-slate-200 px-1 py-0.5">
-                    緊急度: {split.urgency}
+                    緊急度: {SEVERITY_LABELS[split.urgency as Severity] ?? split.urgency}
                   </span>
                   <span className="border border-slate-200 px-1 py-0.5">
-                    リスク: {split.risk}
+                    リスク: {SEVERITY_LABELS[split.risk as Severity] ?? split.risk}
                   </span>
                 </div>
                 {split.detail ? (

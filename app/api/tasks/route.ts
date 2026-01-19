@@ -4,6 +4,7 @@ import { withApiHandler } from "../../../lib/api-handler";
 import { requireWorkspaceAuth } from "../../../lib/api-guards";
 import { ok } from "../../../lib/api-response";
 import { applyAutomationForTask } from "../../../lib/automation";
+import { normalizeSeverity } from "../../../lib/ai-normalization";
 import { badPoints } from "../../../lib/points";
 import { logAudit } from "../../../lib/audit";
 import { TaskCreateSchema } from "../../../lib/contracts/task";
@@ -11,7 +12,6 @@ import { createDomainErrors } from "../../../lib/http/errors";
 import { parseBody } from "../../../lib/http/validation";
 import prisma from "../../../lib/prisma";
 import { TASK_STATUS, TASK_TYPE, SEVERITY } from "../../../lib/types";
-import { normalizeSeverity } from "../../../lib/ai-normalization";
 import { mapTaskWithDependencies } from "../../../lib/mappers/task";
 
 const isTaskStatus = (value: unknown): value is TaskStatus =>

@@ -26,6 +26,28 @@ export const AUTOMATION_STATE = {
 
 export type AutomationState = (typeof AUTOMATION_STATE)[keyof typeof AUTOMATION_STATE];
 
+export const SEVERITY = {
+  LOW: "LOW",
+  MEDIUM: "MEDIUM",
+  HIGH: "HIGH",
+} as const;
+
+export type Severity = (typeof SEVERITY)[keyof typeof SEVERITY];
+
+// Labels for display (Japanese)
+export const SEVERITY_LABELS: Record<Severity, string> = {
+  [SEVERITY.LOW]: "低",
+  [SEVERITY.MEDIUM]: "中",
+  [SEVERITY.HIGH]: "高",
+};
+
+// Reverse mapping for parsing Japanese input
+export const SEVERITY_FROM_LABEL: Record<string, Severity> = {
+  "低": SEVERITY.LOW,
+  "中": SEVERITY.MEDIUM,
+  "高": SEVERITY.HIGH,
+};
+
 export type TaskDTO = {
   id: string;
   title: string;
@@ -33,8 +55,8 @@ export type TaskDTO = {
   definitionOfDone?: string;
   checklist?: { id: string; text: string; done: boolean }[] | null;
   points: 1 | 2 | 3 | 5 | 8 | 13 | 21 | 34;
-  urgency: string;
-  risk: string;
+  urgency: Severity;
+  risk: Severity;
   status: TaskStatus;
   type?: TaskType;
   automationState?: AutomationState;

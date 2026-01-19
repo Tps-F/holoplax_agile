@@ -4,7 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkspaceId } from "../components/use-workspace-id";
-import { SprintDTO, TASK_STATUS, TASK_TYPE, TaskDTO, TaskType } from "../../lib/types";
+import { SprintDTO, TASK_STATUS, TASK_TYPE, TaskDTO, TaskType, SEVERITY, SEVERITY_LABELS, Severity } from "../../lib/types";
 
 const storyPoints = [1, 2, 3, 5, 8, 13, 21, 34];
 type MemberRow = {
@@ -69,8 +69,8 @@ export default function SprintPage() {
     definitionOfDone: "",
     checklistText: "",
     points: 1,
-    urgency: "中",
-    risk: "中",
+    urgency: SEVERITY.MEDIUM as Severity,
+    risk: SEVERITY.MEDIUM as Severity,
     dueDate: "",
     assigneeId: "",
     tags: "",
@@ -177,8 +177,8 @@ export default function SprintPage() {
         definitionOfDone: newItem.definitionOfDone.trim(),
         checklist: checklistFromText(newItem.checklistText),
         points: Number(newItem.points),
-        urgency: "中",
-        risk: "中",
+        urgency: SEVERITY.MEDIUM,
+        risk: SEVERITY.MEDIUM,
         status: TASK_STATUS.SPRINT,
         type: TASK_TYPE.TASK,
         dueDate: newItem.dueDate || null,
@@ -818,11 +818,11 @@ export default function SprintPage() {
                   緊急度
                   <select
                     value={editForm.urgency}
-                    onChange={(e) => setEditForm((p) => ({ ...p, urgency: e.target.value }))}
+                    onChange={(e) => setEditForm((p) => ({ ...p, urgency: e.target.value as Severity }))}
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   >
-                    {["低", "中", "高"].map((v) => (
-                      <option key={v}>{v}</option>
+                    {[SEVERITY.LOW, SEVERITY.MEDIUM, SEVERITY.HIGH].map((v) => (
+                      <option key={v} value={v}>{SEVERITY_LABELS[v]}</option>
                     ))}
                   </select>
                 </label>
@@ -830,11 +830,11 @@ export default function SprintPage() {
                   リスク
                   <select
                     value={editForm.risk}
-                    onChange={(e) => setEditForm((p) => ({ ...p, risk: e.target.value }))}
+                    onChange={(e) => setEditForm((p) => ({ ...p, risk: e.target.value as Severity }))}
                     className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                   >
-                    {["低", "中", "高"].map((v) => (
-                      <option key={v}>{v}</option>
+                    {[SEVERITY.LOW, SEVERITY.MEDIUM, SEVERITY.HIGH].map((v) => (
+                      <option key={v} value={v}>{SEVERITY_LABELS[v]}</option>
                     ))}
                   </select>
                 </label>

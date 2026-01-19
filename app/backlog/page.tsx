@@ -9,9 +9,12 @@ import {
   TASK_STATUS,
   TASK_TYPE,
   AUTOMATION_STATE,
+  SEVERITY,
+  SEVERITY_LABELS,
   TaskDTO,
   TaskType,
   TaskStatus,
+  Severity,
 } from "../../lib/types";
 
 const storyPoints = [1, 2, 3, 5, 8, 13, 21, 34];
@@ -47,8 +50,7 @@ const checklistFromText = (text: string) =>
 const checklistToText = (
   checklist?: { id: string; text: string; done: boolean }[] | null,
 ) => (checklist ?? []).map((item) => item.text).join("\n");
-const urgencyOptions = ["低", "中", "高"] as const;
-const riskOptions = ["低", "中", "高"] as const;
+const severityOptions: Severity[] = [SEVERITY.LOW, SEVERITY.MEDIUM, SEVERITY.HIGH];
 type SplitSuggestion = {
   title: string;
   points: number;
@@ -119,9 +121,9 @@ export default function BacklogPage() {
     definitionOfDone: "",
     checklistText: "",
     points: 3,
-    urgency: "中",
-    risk: "中",
-    type: view === "sprint" ? TASK_TYPE.TASK : TASK_TYPE.PBI,
+    urgency: SEVERITY.MEDIUM as Severity,
+    risk: SEVERITY.MEDIUM as Severity,
+    type: (view === "sprint" ? TASK_TYPE.TASK : TASK_TYPE.PBI) as TaskType,
     parentId: "",
     dueDate: "",
     assigneeId: "",
@@ -160,8 +162,8 @@ export default function BacklogPage() {
     definitionOfDone: "",
     checklistText: "",
     points: 3,
-    urgency: "中",
-    risk: "中",
+    urgency: SEVERITY.MEDIUM as Severity,
+    risk: SEVERITY.MEDIUM as Severity,
     type: TASK_TYPE.PBI as TaskType,
     parentId: "",
     dueDate: "",
@@ -522,31 +524,6 @@ export default function BacklogPage() {
     }
   };
 
-  const estimateScore = async () => {
-    if (!form.title.trim()) return;
-    setScoreHint(null);
-    setScoreLoading(true);
-    try {
-      const res = await fetch("/api/ai/score", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: form.title.trim(), description: form.description.trim() }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setForm((prev) => ({
-          ...prev,
-          points: Number(data.points) || prev.points,
-          urgency: data.urgency ?? prev.urgency,
-          risk: data.risk ?? prev.risk,
-        }));
-        setScoreHint(data.reason ?? `AI推定スコア: ${data.score}`);
-      }
-    } finally {
-      setScoreLoading(false);
-    }
-  };
-
   const estimateScoreForTask = async (item: TaskDTO) => {
     setScoreLoadingId(item.id);
     try {
@@ -670,8 +647,8 @@ export default function BacklogPage() {
             title: split.title,
             description: split.detail,
             points: split.points,
-            urgency: split.urgency ?? "中",
-            risk: split.risk ?? "中",
+            urgency: split.urgency ?? SEVERITY.MEDIUM,
+            risk: split.risk ?? SEVERITY.MEDIUM,
             status: statusValue,
             type: TASK_TYPE.TASK,
             parentId: item.id,
@@ -964,10 +941,10 @@ export default function BacklogPage() {
                       {item.points} pt
                     </span>
                     <span className="border border-slate-200 bg-white px-2 py-1">
-                      緊急度: {item.urgency}
+                      緊急度: {SEVERITY_LABELS[item.urgency as Severity] ?? item.urgency}
                     </span>
                     <span className="border border-slate-200 bg-white px-2 py-1">
-                      リスク: {item.risk}
+                      リスク: {SEVERITY_LABELS[item.risk as Severity] ?? item.risk}
                     </span>
                   </div>
                 </div>
@@ -1015,10 +992,10 @@ export default function BacklogPage() {
                       {item.points} pt
                     </span>
                     <span className="border border-slate-200 bg-white px-2 py-1">
-                      緊急度: {item.urgency}
+                      緊急度: {SEVERITY_LABELS[item.urgency as Severity] ?? item.urgency}
                     </span>
                     <span className="border border-slate-200 bg-white px-2 py-1">
-                      リスク: {item.risk}
+                      リスク: {SEVERITY_LABELS[item.risk as Severity] ?? item.risk}
                     </span>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2 text-xs">
@@ -1072,10 +1049,10 @@ export default function BacklogPage() {
                             {item.points} pt
                           </span>
                           <span className="border border-slate-200 bg-white px-2 py-1 text-slate-700">
-                            緊急度: {item.urgency}
+                            緊急度: {SEVERITY_LABELS[item.urgency as Severity] ?? item.urgency}
                           </span>
                           <span className="border border-slate-200 bg-white px-2 py-1 text-slate-700">
-                            リスク: {item.risk}
+                            リスク: {SEVERITY_LABELS[item.risk as Severity] ?? item.risk}
                           </span>
                           {item.automationState === AUTOMATION_STATE.PENDING_SPLIT ? (
                             <span className="border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700">
@@ -1202,10 +1179,10 @@ export default function BacklogPage() {
                               {scoreMap[item.id].points} pt
                             </span>
                             <span className="border border-slate-200 bg-slate-50 px-2 py-1">
-                              緊急度: {scoreMap[item.id].urgency}
+                              緊急度: {SEVERITY_LABELS[scoreMap[item.id].urgency as Severity] ?? scoreMap[item.id].urgency}
                             </span>
                             <span className="border border-slate-200 bg-slate-50 px-2 py-1">
-                              リスク: {scoreMap[item.id].risk}
+                              リスク: {SEVERITY_LABELS[scoreMap[item.id].risk as Severity] ?? scoreMap[item.id].risk}
                             </span>
                           </div>
                           {scoreMap[item.id].reason ? (
@@ -1420,7 +1397,7 @@ export default function BacklogPage() {
                       AIがポイント・緊急度・リスクを先行推定済みです。
                     </p>
                     <p className="mt-1 text-[11px] text-slate-500">
-                      {`推定: ${estimatedScore.points} pt / 緊急度: ${estimatedScore.urgency} / リスク: ${estimatedScore.risk}`}
+                      {`推定: ${estimatedScore.points} pt / 緊急度: ${SEVERITY_LABELS[estimatedScore.urgency as Severity] ?? estimatedScore.urgency} / リスク: ${SEVERITY_LABELS[estimatedScore.risk as Severity] ?? estimatedScore.risk}`}
                     </p>
                   </div>
                 ) : null}
@@ -1491,7 +1468,7 @@ export default function BacklogPage() {
                       AI予測を踏まえて詳細を整えています。
                     </p>
                     <p className="mt-1 text-[11px] text-slate-500">
-                      {`推定: ${estimatedScore.points} pt / 緊急度: ${estimatedScore.urgency} / リスク: ${estimatedScore.risk}`}
+                      {`推定: ${estimatedScore.points} pt / 緊急度: ${SEVERITY_LABELS[estimatedScore.urgency as Severity] ?? estimatedScore.urgency} / リスク: ${SEVERITY_LABELS[estimatedScore.risk as Severity] ?? estimatedScore.risk}`}
                     </p>
                   </div>
                 ) : null}
@@ -1527,7 +1504,7 @@ export default function BacklogPage() {
                       <div className="flex-1 min-w-0">
                         <span>緊急度</span>
                         <div className="mt-1 flex flex-wrap gap-2">
-                          {urgencyOptions.map((option) => (
+                          {severityOptions.map((option) => (
                             <button
                               key={`urgency-${option}`}
                               type="button"
@@ -1539,7 +1516,7 @@ export default function BacklogPage() {
                                   : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                               }`}
                             >
-                              {option}
+                              {SEVERITY_LABELS[option]}
                             </button>
                           ))}
                         </div>
@@ -1547,7 +1524,7 @@ export default function BacklogPage() {
                       <div className="flex-1 min-w-0">
                         <span>リスク</span>
                         <div className="mt-1 flex flex-wrap gap-2">
-                          {riskOptions.map((option) => (
+                          {severityOptions.map((option) => (
                             <button
                               key={`risk-${option}`}
                               type="button"
@@ -1559,7 +1536,7 @@ export default function BacklogPage() {
                                   : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                               }`}
                             >
-                              {option}
+                              {SEVERITY_LABELS[option]}
                             </button>
                           ))}
                         </div>
@@ -1888,20 +1865,20 @@ export default function BacklogPage() {
                 </select>
                 <select
                   value={editForm.urgency}
-                  onChange={(e) => setEditForm((p) => ({ ...p, urgency: e.target.value }))}
+                  onChange={(e) => setEditForm((p) => ({ ...p, urgency: e.target.value as Severity }))}
                   className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 >
-                  {["低", "中", "高"].map((v) => (
-                    <option key={v}>{v}</option>
+                  {severityOptions.map((v) => (
+                    <option key={v} value={v}>{SEVERITY_LABELS[v]}</option>
                   ))}
                 </select>
                 <select
                   value={editForm.risk}
-                  onChange={(e) => setEditForm((p) => ({ ...p, risk: e.target.value }))}
+                  onChange={(e) => setEditForm((p) => ({ ...p, risk: e.target.value as Severity }))}
                   className="w-full border border-slate-200 px-3 py-2 text-sm text-slate-800 outline-none focus:border-[#2323eb]"
                 >
-                  {["低", "中", "高"].map((v) => (
-                    <option key={v}>{v}</option>
+                  {severityOptions.map((v) => (
+                    <option key={v} value={v}>{SEVERITY_LABELS[v]}</option>
                   ))}
                 </select>
               </div>

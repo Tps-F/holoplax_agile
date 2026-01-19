@@ -46,6 +46,12 @@ enum AiProvider {
   GEMINI
 }
 
+enum Severity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 enum UserRole {
   ADMIN
   USER
@@ -291,8 +297,8 @@ model Task {
   definitionOfDone String            @default("")
   checklist        Json?
   points           Int
-  urgency          String
-  risk             String
+  urgency          Severity          @default(MEDIUM)
+  risk             Severity          @default(MEDIUM)
   status           TaskStatus        @default(BACKLOG)
   type             TaskType          @default(PBI)
   automationState  AutomationState   @default(NONE)

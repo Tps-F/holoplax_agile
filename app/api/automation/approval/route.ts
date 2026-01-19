@@ -8,7 +8,7 @@ import { AutomationApprovalSchema } from "../../../../lib/contracts/automation";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import prisma from "../../../../lib/prisma";
-import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE } from "../../../../lib/types";
+import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, SEVERITY } from "../../../../lib/types";
 import { logAudit } from "../../../../lib/audit";
 
 const STAGE_COOLDOWN_DAYS = 7;
@@ -155,8 +155,8 @@ export async function POST(request: Request) {
                 title: item.title,
                 description: item.detail ?? "",
                 points: Number(item.points) || 1,
-                urgency: item.urgency ?? "中",
-                risk: item.risk ?? "中",
+                urgency: item.urgency ?? SEVERITY.MEDIUM,
+                risk: item.risk ?? SEVERITY.MEDIUM,
                 status: TASK_STATUS.BACKLOG,
                 automationState: AUTOMATION_STATE.SPLIT_CHILD,
                 type: TASK_TYPE.TASK,

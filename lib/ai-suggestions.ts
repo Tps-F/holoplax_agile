@@ -2,12 +2,13 @@ import { requestAiChat } from "./ai-provider";
 import type { AiUsageContext } from "./ai-usage";
 import { storyPointOptions } from "./points";
 import { normalizeStoryPoint, sanitizeSplitSuggestion } from "./ai-normalization";
+import { SEVERITY, Severity } from "./types";
 
 export type SplitItem = {
   title: string;
   points: number;
-  urgency: string;
-  risk: string;
+  urgency: Severity;
+  risk: Severity;
   detail: string;
 };
 
@@ -20,8 +21,8 @@ const fallbackSplit = (title: string, description: string, points: number): Spli
       idx === count - 1
         ? normalizeStoryPoint(Math.max(1, points - basePoints * (count - 1)))
         : normalizeStoryPoint(basePoints),
-    urgency: "中",
-    risk: description.includes("外部") ? "高" : "中",
+    urgency: SEVERITY.MEDIUM,
+    risk: description.includes("外部") ? SEVERITY.HIGH : SEVERITY.MEDIUM,
     detail: "小さく完了条件を定義し、依存を先に解消。",
   }));
 };

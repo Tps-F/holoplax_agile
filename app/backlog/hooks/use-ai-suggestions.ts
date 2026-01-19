@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, TaskDTO } from "../../../lib/types";
+import { TASK_STATUS, TASK_TYPE, AUTOMATION_STATE, SEVERITY, TaskDTO } from "../../../lib/types";
 
 type SplitSuggestion = {
   title: string;
@@ -209,8 +209,8 @@ export function useAiSuggestions({
             title: split.title,
             description: split.detail,
             points: split.points,
-            urgency: split.urgency ?? "中",
-            risk: split.risk ?? "中",
+            urgency: split.urgency ?? SEVERITY.MEDIUM,
+            risk: split.risk ?? SEVERITY.MEDIUM,
             status: statusValue,
             type: TASK_TYPE.TASK,
             parentId: item.id,
