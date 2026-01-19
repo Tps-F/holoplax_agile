@@ -14,6 +14,7 @@ import {
   type TaskStatus,
   type TaskType,
 } from "../../lib/types";
+import { DropdownMenu } from "../components/dropdown-menu";
 import { LoadingButton } from "../components/loading-button";
 import { useWorkspaceId } from "../components/use-workspace-id";
 import { useProactiveSuggestionsList } from "./hooks/use-proactive-suggestions";
@@ -1110,26 +1111,31 @@ export default function BacklogPage() {
                             目標リストに戻す
                           </button>
                         )}
-                        <LoadingButton
-                          className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                          onClick={() => getSuggestion(item.title, item.description, item.id)}
-                          loading={suggestLoadingId === item.id}
-                        >
-                          AI 提案を見る
-                        </LoadingButton>
-                        <LoadingButton
-                          className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                          onClick={() => estimateScoreForTask(item)}
-                          loading={scoreLoadingId === item.id}
-                        >
-                          AIでスコア推定
-                        </LoadingButton>
-                        <button
-                          className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                          onClick={() => openPrepModal(item)}
-                        >
-                          AIで下準備
-                        </button>
+                        <DropdownMenu
+                          label="AI提案"
+                          items={[
+                            {
+                              label: "ヒントを見る",
+                              onClick: () => getSuggestion(item.title, item.description, item.id),
+                              loading: suggestLoadingId === item.id,
+                            },
+                            {
+                              label: "スコア推定",
+                              onClick: () => estimateScoreForTask(item),
+                              loading: scoreLoadingId === item.id,
+                            },
+                            {
+                              label: "分解提案",
+                              onClick: () => requestSplit(item),
+                              loading: splitLoadingId === item.id,
+                              disabled: item.points <= splitThreshold,
+                            },
+                            {
+                              label: "下準備",
+                              onClick: () => openPrepModal(item),
+                            },
+                          ]}
+                        />
                         <button
                           className="border border-slate-200 bg-white p-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
                           onClick={() => openEdit(item)}
@@ -1144,15 +1150,6 @@ export default function BacklogPage() {
                         >
                           <Trash2 size={14} />
                         </button>
-                        {item.points > splitThreshold ? (
-                          <LoadingButton
-                            className="border border-slate-200 bg-white px-3 py-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                            onClick={() => requestSplit(item)}
-                            loading={splitLoadingId === item.id}
-                          >
-                            分解提案
-                          </LoadingButton>
-                        ) : null}
                       </div>
                       {suggestionMap[item.id] ? (
                         <div className="mt-2 border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
