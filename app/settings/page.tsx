@@ -333,7 +333,7 @@ export default function SettingsPage() {
             </p>
             <h1 className="text-3xl font-semibold text-slate-900">設定</h1>
             <p className="text-sm text-slate-600">
-              しきい値、通知、ストレージなどの設定（モック）。
+              閾値、通知、ストレージなどの設定（モック）。
             </p>
           </div>
           <span className="border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-700">
@@ -452,7 +452,7 @@ export default function SettingsPage() {
         </div>
 
         <div className="border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900">AI しきい値</h3>
+          <h3 className="text-lg font-semibold text-slate-900">AI閾値</h3>
           <p className="text-sm text-slate-600">
             低・中・高の分岐ポイントを設定（現在: {low} / {high}）。
           </p>

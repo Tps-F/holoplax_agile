@@ -81,7 +81,7 @@ export default function AutomationPage() {
             </p>
             <h1 className="text-3xl font-semibold text-slate-900">自動化</h1>
             <p className="text-sm text-slate-600">
-              スコアしきい値ごとの挙動を管理。低スコアはAI委任キュー、高スコアは自動分解（承認モードは環境変数
+              スコア閾値ごとの挙動を管理。低スコアはAI委任キュー、高スコアは自動分解（承認モードは環境変数
               AUTOMATION_REQUIRE_APPROVAL=true でON）。
             </p>
           </div>
@@ -118,7 +118,7 @@ export default function AutomationPage() {
             ステージ {thresholds.stage ?? 0}
           </span>
           <span className="border border-slate-200 bg-slate-50 px-2 py-1">
-            有効しきい値 {effectiveLow} / {effectiveHigh}
+            有効閾値 {effectiveLow} / {effectiveHigh}
           </span>
           <button
             onClick={resetStage}

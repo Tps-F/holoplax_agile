@@ -294,7 +294,7 @@ export default function BacklogPage() {
         const data = await res.json();
         setItems((prev) => [...prev, data.task]);
         if (data.task.points > splitThreshold && data.task.status === TASK_STATUS.BACKLOG) {
-          // しきい値超過の場合は即座に分解案を取得して表示
+          // 閾値超過の場合は即座に分解案を取得して表示
           void requestSplit(data.task);
         }
         setForm({

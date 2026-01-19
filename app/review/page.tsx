@@ -444,7 +444,7 @@ export default async function ReviewPage() {
               バックログ状況
             </h2>
             <span className="text-xs text-slate-500">
-              分解しきい値 {splitThreshold} pt
+              分解閾値 {splitThreshold} pt
             </span>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
