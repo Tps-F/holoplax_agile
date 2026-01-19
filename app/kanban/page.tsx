@@ -1,14 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  AUTOMATION_STATE,
-  TASK_STATUS,
-  TASK_TYPE,
-  type TaskDTO,
-  type TaskStatus,
-  type TaskType,
-} from "../../lib/types";
+import { AUTOMATION_STATE, TASK_STATUS, type TaskDTO, type TaskStatus } from "../../lib/types";
+import { TaskCard } from "../components/task-card";
 import { useWorkspaceId } from "../components/use-workspace-id";
 
 type MemberRow = {
@@ -28,13 +22,6 @@ type Column = {
   key: TaskStatus;
   label: string;
   hint: string;
-};
-
-const taskTypeLabels: Record<TaskType, string> = {
-  [TASK_TYPE.EPIC]: "目標",
-  [TASK_TYPE.PBI]: "PBI",
-  [TASK_TYPE.TASK]: "タスク",
-  [TASK_TYPE.ROUTINE]: "ルーティン",
 };
 
 const columns: Column[] = [
@@ -210,8 +197,16 @@ export default function KanbanPage() {
 
             <div className="mt-3 grid flex-1 content-start gap-3 overflow-y-auto">
               {grouped[col.key].map((item) => (
-                <div
+                <TaskCard
                   key={item.id}
+                  item={item}
+                  variant="kanban"
+                  members={members.map((m) => ({ id: m.id, name: m.name }))}
+                  isBlocked={isBlocked(item)}
+                  showAiTaskBadge
+                  isAiTask={isAiTask(item)}
+                  showChecklist={false}
+                  showMetadata={false}
                   draggable
                   onDragStart={(e) => {
                     setDraggingId(item.id);
@@ -219,72 +214,9 @@ export default function KanbanPage() {
                     e.dataTransfer.effectAllowed = "move";
                   }}
                   onDragEnd={() => setDraggingId(null)}
-                  className={`min-w-0 break-words border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 transition ${
-                    draggingId === item.id ? "opacity-60" : ""
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2 overflow-hidden">
-                    <p className="break-words font-semibold text-slate-900">{item.title}</p>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <span className="shrink-0 border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-600">
-                        {taskTypeLabels[(item.type ?? TASK_TYPE.PBI) as TaskType]}
-                      </span>
-                      <span
-                        className={`shrink-0 border px-2 py-0.5 text-[10px] font-semibold ${
-                          isAiTask(item)
-                            ? "border-amber-200 bg-amber-50 text-amber-700"
-                            : "border-slate-200 bg-white text-slate-600"
-                        }`}
-                      >
-                        {isAiTask(item) ? "AI" : "人"}
-                      </span>
-                    </div>
-                  </div>
-                  {item.description ? (
-                    <p className="mt-1 break-words text-xs text-slate-600">{item.description}</p>
-                  ) : null}
-                  {item.dependencies && item.dependencies.length > 0 ? (
-                    <p
-                      className={`mt-1 break-words text-xs ${
-                        isBlocked(item) ? "text-amber-700" : "text-slate-500"
-                      }`}
-                    >
-                      依存:{" "}
-                      {item.dependencies
-                        .map((dep) =>
-                          dep.status === TASK_STATUS.DONE ? dep.title : `${dep.title}*`,
-                        )
-                        .join(", ")}
-                    </p>
-                  ) : null}
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
-                    <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
-                      {item.points} pt
-                    </span>
-                    <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
-                      緊急度: {item.urgency}
-                    </span>
-                    <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
-                      リスク: {item.risk}
-                    </span>
-                    {item.dueDate ? (
-                      <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
-                        期限: {new Date(item.dueDate).toLocaleDateString()}
-                      </span>
-                    ) : null}
-                    {item.assigneeId ? (
-                      <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
-                        担当:{" "}
-                        {members.find((member) => member.id === item.assigneeId)?.name ?? "未設定"}
-                      </span>
-                    ) : null}
-                    {item.tags && item.tags.length > 0 ? (
-                      <span className="max-w-full break-words border border-slate-200 bg-white px-2 py-1">
-                        #{item.tags.join(" #")}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
+                  isDragging={draggingId === item.id}
+                  className="min-w-0 break-words transition"
+                />
               ))}
             </div>
           </div>

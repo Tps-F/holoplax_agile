@@ -1,21 +1,15 @@
 "use client";
 
-import { Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  SEVERITY,
-  SEVERITY_LABELS,
-  type Severity,
-  type SprintDTO,
-  TASK_STATUS,
-  TASK_TYPE,
-  type TaskDTO,
-  type TaskType,
-} from "../../lib/types";
+import { useCallback, useEffect, useState } from "react";
+import { SEVERITY, SEVERITY_LABELS, type Severity, TASK_STATUS } from "../../lib/types";
+import { TaskCard } from "../components/task-card";
 import { useWorkspaceId } from "../components/use-workspace-id";
+import { useSprintManagement } from "./hooks/use-sprint-management";
+import { useSprintTasks } from "./hooks/use-sprint-tasks";
 
 const storyPoints = [1, 2, 3, 5, 8, 13, 21, 34];
+
 type MemberRow = {
   id: string;
   name: string | null;
@@ -23,118 +17,45 @@ type MemberRow = {
   role: string;
 };
 
-const taskTypeLabels: Record<TaskType, string> = {
-  [TASK_TYPE.EPIC]: "目標",
-  [TASK_TYPE.PBI]: "PBI",
-  [TASK_TYPE.TASK]: "タスク",
-  [TASK_TYPE.ROUTINE]: "ルーティン",
-};
-
-const checklistFromText = (text: string) =>
-  text
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line, index) => ({
-      id: `${Date.now()}-${index}`,
-      text: line,
-      done: false,
-    }));
-
-const checklistToText = (checklist?: { id: string; text: string; done: boolean }[] | null) =>
-  (checklist ?? []).map((item) => item.text).join("\n");
-
 export default function SprintPage() {
-  const capacity = 24;
   const { workspaceId, ready } = useWorkspaceId();
-  const [items, setItems] = useState<TaskDTO[]>([]);
   const [members, setMembers] = useState<MemberRow[]>([]);
-  const [sprint, setSprint] = useState<SprintDTO | null>(null);
-  const [sprintHistory, setSprintHistory] = useState<
-    (SprintDTO & { committedPoints?: number; completedPoints?: number })[]
-  >([]);
-  const [sprintLoading, setSprintLoading] = useState(false);
-  const [sprintForm, setSprintForm] = useState({
-    name: "",
-    capacityPoints: 24,
-    startedAt: "",
-    plannedEndAt: "",
-  });
-  const [newItem, setNewItem] = useState({
-    title: "",
-    description: "",
-    definitionOfDone: "",
-    checklistText: "",
-    points: 1,
-    dueDate: "",
-    assigneeId: "",
-    tags: "",
-  });
-  const [editItem, setEditItem] = useState<TaskDTO | null>(null);
-  const [editForm, setEditForm] = useState({
-    title: "",
-    description: "",
-    definitionOfDone: "",
-    checklistText: "",
-    points: 1,
-    urgency: SEVERITY.MEDIUM as Severity,
-    risk: SEVERITY.MEDIUM as Severity,
-    dueDate: "",
-    assigneeId: "",
-    tags: "",
+
+  const {
+    sprint,
+    sprintHistory,
+    sprintLoading,
+    sprintForm,
+    setSprintForm,
+    fetchSprint,
+    fetchSprintHistory,
+    startSprint,
+    endSprint,
+    updateSprint,
+  } = useSprintManagement({
+    ready,
+    workspaceId,
+    onSprintChange: () => void fetchTasks(),
   });
 
-  const fetchTasks = useCallback(async () => {
-    if (!ready) return;
-    if (!workspaceId) {
-      setItems([]);
-      return;
-    }
-    const res = await fetch("/api/tasks?status=SPRINT&limit=200");
-    const data = await res.json();
-    setItems(data.tasks ?? []);
-  }, [ready, workspaceId]);
-
-  const fetchSprint = useCallback(async () => {
-    if (!ready) return;
-    if (!workspaceId) {
-      setSprint(null);
-      return;
-    }
-    const res = await fetch("/api/sprints/current");
-    if (!res.ok) return;
-    const data = await res.json();
-    setSprint(data.sprint ?? null);
-    if (data.sprint) {
-      setSprintForm({
-        name: data.sprint.name ?? "",
-        capacityPoints: data.sprint.capacityPoints ?? capacity,
-        startedAt: data.sprint.startedAt
-          ? new Date(data.sprint.startedAt).toISOString().slice(0, 10)
-          : "",
-        plannedEndAt: data.sprint.plannedEndAt
-          ? new Date(data.sprint.plannedEndAt).toISOString().slice(0, 10)
-          : "",
-      });
-    } else {
-      setSprintForm((prev) => ({
-        ...prev,
-        capacityPoints: capacity,
-      }));
-    }
-  }, [ready, workspaceId]);
-
-  const fetchSprintHistory = useCallback(async () => {
-    if (!ready) return;
-    if (!workspaceId) {
-      setSprintHistory([]);
-      return;
-    }
-    const res = await fetch("/api/sprints");
-    if (!res.ok) return;
-    const data = await res.json();
-    setSprintHistory(data.sprints ?? []);
-  }, [ready, workspaceId]);
+  const {
+    displayedItems,
+    used,
+    newItem,
+    setNewItem,
+    editItem,
+    editForm,
+    setEditForm,
+    fetchTasks,
+    addItem,
+    markDone,
+    deleteItem,
+    openEdit,
+    closeEdit,
+    saveEdit,
+    toggleChecklistItem,
+    isBlocked,
+  } = useSprintTasks({ ready, workspaceId, sprintId: sprint?.id });
 
   const fetchMembers = useCallback(async () => {
     if (!ready || !workspaceId) {
@@ -154,202 +75,10 @@ export default function SprintPage() {
     void fetchMembers();
   }, [fetchTasks, fetchSprint, fetchSprintHistory, fetchMembers]);
 
-  const displayedItems = useMemo(() => {
-    if (sprint) {
-      return items.filter((item) => item.sprintId === sprint.id);
-    }
-    return items.filter((item) => item.status === TASK_STATUS.SPRINT);
-  }, [items, sprint]);
-
-  const used = useMemo(
-    () =>
-      displayedItems
-        .filter((i) => i.status !== TASK_STATUS.DONE)
-        .reduce((sum, i) => sum + i.points, 0),
-    [displayedItems],
-  );
-  const isBlocked = (item: TaskDTO) =>
-    (item.dependencies ?? []).some((dep) => dep.status !== TASK_STATUS.DONE);
-  const activeCapacity = sprint?.capacityPoints ?? capacity;
+  const activeCapacity = sprint?.capacityPoints ?? 24;
   const remaining = activeCapacity - used;
 
-  const addItem = async () => {
-    if (!newItem.title.trim() || newItem.points <= 0) return;
-    if (newItem.points > remaining) return;
-    await fetch("/api/tasks", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: newItem.title.trim(),
-        description: newItem.description.trim(),
-        definitionOfDone: newItem.definitionOfDone.trim(),
-        checklist: checklistFromText(newItem.checklistText),
-        points: Number(newItem.points),
-        urgency: SEVERITY.MEDIUM,
-        risk: SEVERITY.MEDIUM,
-        status: TASK_STATUS.SPRINT,
-        type: TASK_TYPE.TASK,
-        dueDate: newItem.dueDate || null,
-        assigneeId: newItem.assigneeId || null,
-        tags: newItem.tags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-      }),
-    });
-    setNewItem({
-      title: "",
-      description: "",
-      definitionOfDone: "",
-      checklistText: "",
-      points: 1,
-      dueDate: "",
-      assigneeId: "",
-      tags: "",
-    });
-    fetchTasks();
-  };
-
-  const startSprint = async () => {
-    setSprintLoading(true);
-    try {
-      const res = await fetch("/api/sprints/current", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: sprintForm.name.trim() || undefined,
-          capacityPoints: sprintForm.capacityPoints,
-          plannedEndAt: sprintForm.plannedEndAt || null,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSprint(data.sprint ?? null);
-        fetchSprintHistory();
-      }
-    } finally {
-      setSprintLoading(false);
-    }
-  };
-
-  const endSprint = async () => {
-    setSprintLoading(true);
-    try {
-      const res = await fetch("/api/sprints/current", { method: "PATCH" });
-      if (res.ok) {
-        await fetchSprint();
-      }
-      fetchTasks();
-      fetchSprintHistory();
-    } finally {
-      setSprintLoading(false);
-    }
-  };
-
-  const updateSprint = async () => {
-    if (!sprint) return;
-    setSprintLoading(true);
-    try {
-      const res = await fetch(`/api/sprints/${sprint.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: sprintForm.name,
-          capacityPoints: sprintForm.capacityPoints,
-          startedAt: sprintForm.startedAt || null,
-          plannedEndAt: sprintForm.plannedEndAt || null,
-        }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSprint(data.sprint ?? null);
-        fetchSprintHistory();
-      }
-    } finally {
-      setSprintLoading(false);
-    }
-  };
-
-  const markDone = async (id: string) => {
-    const target = items.find((item) => item.id === id);
-    if (target && isBlocked(target)) {
-      window.alert("依存タスクが未完了のため完了にできません。");
-      return;
-    }
-    if (target?.checklist?.some((item) => !item.done)) {
-      window.alert("チェックリストが未完了です。完了にする前に確認してください。");
-      return;
-    }
-    await fetch(`/api/tasks/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: TASK_STATUS.DONE }),
-    });
-    fetchTasks();
-  };
-
-  const deleteItem = async (id: string) => {
-    if (!window.confirm("このタスクを削除しますか？")) return;
-    await fetch(`/api/tasks/${id}`, { method: "DELETE" });
-    fetchTasks();
-  };
-
-  const openEdit = (item: TaskDTO) => {
-    setEditItem(item);
-    setEditForm({
-      title: item.title,
-      description: item.description ?? "",
-      definitionOfDone: item.definitionOfDone ?? "",
-      checklistText: checklistToText(item.checklist ?? null),
-      points: item.points,
-      urgency: item.urgency,
-      risk: item.risk,
-      dueDate: item.dueDate ? String(item.dueDate).slice(0, 10) : "",
-      assigneeId: item.assigneeId ?? "",
-      tags: item.tags?.join(", ") ?? "",
-    });
-  };
-
-  const saveEdit = async () => {
-    if (!editItem) return;
-    await fetch(`/api/tasks/${editItem.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: editForm.title.trim(),
-        description: editForm.description.trim(),
-        definitionOfDone: editForm.definitionOfDone.trim(),
-        checklist: checklistFromText(editForm.checklistText),
-        points: Number(editForm.points),
-        urgency: editForm.urgency,
-        risk: editForm.risk,
-        dueDate: editForm.dueDate || null,
-        assigneeId: editForm.assigneeId || null,
-        tags: editForm.tags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-      }),
-    });
-    setEditItem(null);
-    fetchTasks();
-  };
-
-  const toggleChecklistItem = async (taskId: string, checklistId: string) => {
-    const target = items.find((item) => item.id === taskId);
-    if (!target || !Array.isArray(target.checklist)) return;
-    const nextChecklist = target.checklist.map((item) =>
-      item.id === checklistId ? { ...item, done: !item.done } : item,
-    );
-    setItems((prev) =>
-      prev.map((item) => (item.id === taskId ? { ...item, checklist: nextChecklist } : item)),
-    );
-    await fetch(`/api/tasks/${taskId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ checklist: nextChecklist }),
-    });
-  };
+  const handleAddItem = () => addItem(remaining);
 
   return (
     <main className="max-w-6xl flex-1 space-y-6 px-4 py-10 lg:ml-60 lg:px-6 lg:py-14">
@@ -514,7 +243,7 @@ export default function SprintPage() {
               </select>
             </label>
             <button
-              onClick={addItem}
+              onClick={handleAddItem}
               disabled={newItem.points > remaining}
               className="border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb] disabled:opacity-50"
             >
@@ -564,100 +293,18 @@ export default function SprintPage() {
           {displayedItems
             .filter((item) => item.status !== TASK_STATUS.DONE)
             .map((item) => (
-              <div
+              <TaskCard
                 key={item.id}
-                className="flex items-center justify-between border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800"
-              >
-                <div>
-                  <p className="font-semibold text-slate-900">{item.title}</p>
-                  {item.description ? (
-                    <p className="text-xs text-slate-600">{item.description}</p>
-                  ) : null}
-                  {item.definitionOfDone ? (
-                    <p className="mt-1 text-[11px] text-slate-500">
-                      完了条件: {item.definitionOfDone}
-                    </p>
-                  ) : null}
-                  {item.checklist && item.checklist.length > 0 ? (
-                    <div className="mt-2 grid gap-1 text-[11px] text-slate-600">
-                      {item.checklist.map((check) => (
-                        <label key={check.id} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={check.done}
-                            onChange={() => toggleChecklistItem(item.id, check.id)}
-                            className="accent-[#2323eb]"
-                          />
-                          <span
-                            className={
-                              check.done ? "line-through text-slate-400" : "text-slate-600"
-                            }
-                          >
-                            {check.text}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  ) : null}
-                  {item.dependencies && item.dependencies.length > 0 ? (
-                    <p
-                      className={`mt-1 text-xs ${
-                        isBlocked(item) ? "text-amber-700" : "text-slate-500"
-                      }`}
-                    >
-                      依存:{" "}
-                      {item.dependencies
-                        .map((dep) =>
-                          dep.status === TASK_STATUS.DONE ? dep.title : `${dep.title}*`,
-                        )
-                        .join(", ")}
-                    </p>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600">
-                    {taskTypeLabels[(item.type ?? TASK_TYPE.PBI) as TaskType]}
-                  </span>
-                  {item.type === TASK_TYPE.ROUTINE && item.routineCadence ? (
-                    <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600">
-                      {item.routineCadence === "DAILY" ? "毎日" : "毎週"}
-                    </span>
-                  ) : null}
-                  <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700">
-                    {item.points} pt
-                  </span>
-                  {item.dueDate ? (
-                    <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600">
-                      期限 {new Date(item.dueDate).toLocaleDateString()}
-                    </span>
-                  ) : null}
-                  {item.assigneeId ? (
-                    <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-600">
-                      {members.find((member) => member.id === item.assigneeId)?.name ?? "担当"}
-                    </span>
-                  ) : null}
-                  <button
-                    onClick={() => markDone(item.id)}
-                    className="border border-slate-200 bg-white px-3 py-1 text-xs text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                  >
-                    完了
-                  </button>
-                  <button
-                    onClick={() => openEdit(item)}
-                    className="border border-slate-200 bg-white p-1 text-slate-700 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                    aria-label="編集"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => deleteItem(item.id)}
-                    className="border border-slate-200 bg-white p-1 text-slate-700 transition hover:border-red-300 hover:text-red-600"
-                    aria-label="削除"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
+                item={item}
+                variant="sprint"
+                members={members.map((m) => ({ id: m.id, name: m.name }))}
+                isBlocked={isBlocked(item)}
+                showSeverity={false}
+                onMarkDone={() => markDone(item.id)}
+                onEdit={() => openEdit(item)}
+                onDelete={() => deleteItem(item.id)}
+                onToggleChecklistItem={(checklistId) => toggleChecklistItem(item.id, checklistId)}
+              />
             ))}
         </div>
       </section>
@@ -673,44 +320,16 @@ export default function SprintPage() {
           {displayedItems
             .filter((item) => item.status === TASK_STATUS.DONE)
             .map((item) => (
-              <div
+              <TaskCard
                 key={item.id}
-                className="flex items-center justify-between border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm text-slate-600"
-              >
-                <div>
-                  <p className="font-semibold text-slate-700">{item.title}</p>
-                  {item.description ? (
-                    <p className="text-xs text-slate-500">{item.description}</p>
-                  ) : null}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500">
-                    {taskTypeLabels[(item.type ?? TASK_TYPE.PBI) as TaskType]}
-                  </span>
-                  <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500">
-                    {item.points} pt
-                  </span>
-                  {item.dueDate ? (
-                    <span className="border border-slate-200 bg-white px-2 py-1 text-xs text-slate-500">
-                      期限 {new Date(item.dueDate).toLocaleDateString()}
-                    </span>
-                  ) : null}
-                  <button
-                    onClick={() => openEdit(item)}
-                    className="border border-slate-200 bg-white p-1 text-slate-600 transition hover:border-[#2323eb]/50 hover:text-[#2323eb]"
-                    aria-label="編集"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => deleteItem(item.id)}
-                    className="border border-slate-200 bg-white p-1 text-slate-600 transition hover:border-red-300 hover:text-red-600"
-                    aria-label="削除"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
+                item={item}
+                variant="compact"
+                showSeverity={false}
+                showChecklist={false}
+                showMetadata={false}
+                onEdit={() => openEdit(item)}
+                onDelete={() => deleteItem(item.id)}
+              />
             ))}
         </div>
       </section>
@@ -735,7 +354,7 @@ export default function SprintPage() {
                 <span className="text-slate-800">{item.name}</span>
                 <span>{item.status}</span>
                 <span>{item.capacityPoints} pt</span>
-                <span>{(item as { completedPoints?: number }).completedPoints ?? 0} pt</span>
+                <span>{item.completedPoints ?? 0} pt</span>
                 <span className="text-[11px] text-slate-500">
                   {item.startedAt ? new Date(item.startedAt).toLocaleDateString() : "-"}
                 </span>
@@ -753,7 +372,7 @@ export default function SprintPage() {
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-slate-900">タスクを編集</h3>
               <button
-                onClick={() => setEditItem(null)}
+                onClick={closeEdit}
                 className="text-sm text-slate-500 transition hover:text-slate-800"
               >
                 閉じる
