@@ -278,6 +278,30 @@ export function useAiSuggestions({ fetchTasks, setItems, context }: UseAiSuggest
     await fetchTasks();
   };
 
+  const dismissTip = (itemId: string) => {
+    const suggestion = suggestionMap[itemId];
+    if (suggestion?.suggestionId) {
+      trackSuggestionRejected(suggestion.suggestionId, viewedAtMap.current[`tip_${itemId}`]);
+    }
+    setSuggestionMap((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  const dismissScore = (itemId: string) => {
+    const score = scoreMap[itemId];
+    if (score?.suggestionId) {
+      trackSuggestionRejected(score.suggestionId, viewedAtMap.current[`score_${itemId}`]);
+    }
+    setScoreMap((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
   const rejectSplit = (itemId: string) => {
     const suggestionId = splitSuggestionIdMap[itemId];
     // Track REJECTED
@@ -307,6 +331,8 @@ export function useAiSuggestions({ fetchTasks, setItems, context }: UseAiSuggest
     estimateScoreForTask,
     applyTipSuggestion,
     applyScoreSuggestion,
+    dismissTip,
+    dismissScore,
     requestSplit,
     applySplit,
     rejectSplit,

@@ -567,6 +567,22 @@ export default function BacklogPage() {
     void fetchTasks();
   };
 
+  const dismissTip = (itemId: string) => {
+    setSuggestionMap((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
+  const dismissScore = (itemId: string) => {
+    setScoreMap((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+  };
+
   const applyScoreSuggestion = async (itemId: string) => {
     const score = scoreMap[itemId];
     if (!score) return;
@@ -666,6 +682,19 @@ export default function BacklogPage() {
       }),
     });
     await fetchTasks();
+  };
+
+  const dismissSplit = (itemId: string) => {
+    setSplitMap((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
+    setSplitSuggestionIdMap((prev) => {
+      const next = { ...prev };
+      delete next[itemId];
+      return next;
+    });
   };
 
   const toggleChecklistItem = async (taskId: string, checklistId: string) => {
@@ -1161,6 +1190,12 @@ export default function BacklogPage() {
                             >
                               適用
                             </button>
+                            <button
+                              onClick={() => dismissTip(item.id)}
+                              className="border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500 transition hover:border-slate-300"
+                            >
+                              閉じる
+                            </button>
                           </div>
                         </div>
                       ) : null}
@@ -1195,6 +1230,12 @@ export default function BacklogPage() {
                               className="border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] font-semibold text-emerald-700 transition hover:border-emerald-300"
                             >
                               適用
+                            </button>
+                            <button
+                              onClick={() => dismissScore(item.id)}
+                              className="border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500 transition hover:border-slate-300"
+                            >
+                              閉じる
                             </button>
                           </div>
                         </div>
@@ -1276,6 +1317,12 @@ export default function BacklogPage() {
                               className="border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] text-slate-700 transition hover:border-[#2323eb]/60 hover:text-[#2323eb]"
                             >
                               この分解をバックログに追加
+                            </button>
+                            <button
+                              onClick={() => dismissSplit(item.id)}
+                              className="border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-500 transition hover:border-slate-300"
+                            >
+                              閉じる
                             </button>
                           </div>
                         </div>
