@@ -1,14 +1,16 @@
 import { z } from "zod";
 
-const toStringOrEmpty = (value: unknown) => (value == null ? "" : String(value));
+const toStringOrEmpty = (value: unknown) =>
+  value == null ? "" : String(value);
 
-export const DiscordCreateTaskSchema = z
+export const DiscordIntakeSchema = z
   .object({
-    title: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
-    content: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
-    description: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
-    points: z.coerce.number().optional(),
-    urgency: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
-    risk: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
+    title: z.preprocess(toStringOrEmpty, z.string().trim()),
+    body: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
+    source: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
+    author: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
+    channel: z.preprocess(toStringOrEmpty, z.string().trim()).optional(),
   })
   .passthrough();
+
+export const DiscordCreateTaskSchema = DiscordIntakeSchema;

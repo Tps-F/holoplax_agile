@@ -1,13 +1,10 @@
 import { withApiHandler } from "../../../../lib/api-handler";
 import { ok } from "../../../../lib/api-response";
-import { applyAutomationForTask } from "../../../../lib/automation";
-import { DiscordCreateTaskSchema } from "../../../../lib/contracts/integrations";
+import { DiscordIntakeSchema } from "../../../../lib/contracts/integrations";
 import { createDomainErrors } from "../../../../lib/http/errors";
 import { parseBody } from "../../../../lib/http/validation";
 import { validateSharedToken } from "../../../../lib/integrations/auth";
 import prisma from "../../../../lib/prisma";
-import { SEVERITY, SEVERITY_FROM_LABEL, TASK_STATUS, TASK_TYPE } from "../../../../lib/types";
-import { resolveWorkspaceId } from "../../../../lib/workspace-context";
 
 export async function POST(request: Request) {
   const errors = createDomainErrors("INTEGRATION");
@@ -24,67 +21,44 @@ export async function POST(request: Request) {
       const authError = validateSharedToken(request, ["DISCORD_INTEGRATION_TOKEN"]);
       if (authError) return authError;
 
-      const body = await parseBody(request, DiscordCreateTaskSchema, {
+      const body = await parseBody(request, DiscordIntakeSchema, {
         code: "INTEGRATION_VALIDATION",
         allowEmpty: true,
       });
-      const rawTitle = String(body.title ?? body.content ?? "").trim();
-      const description = String(body.description ?? "").trim();
-      const points = Number(body.points ?? 3);
-      const rawUrgency = String(body.urgency ?? "").trim();
-      const rawRisk = String(body.risk ?? "").trim();
-      const urgency = SEVERITY_FROM_LABEL[rawUrgency] ?? SEVERITY.MEDIUM;
-      const risk = SEVERITY_FROM_LABEL[rawRisk] ?? SEVERITY.MEDIUM;
-      const userId = process.env.DISCORD_USER_ID ?? process.env.INTEGRATION_USER_ID ?? "";
-      const workspaceEnv = process.env.DISCORD_WORKSPACE_ID ?? "";
 
-      if (!rawTitle) {
+      const title = String(body.title ?? "").trim();
+      const rawBody = String(body.body ?? "").trim();
+      const author = String(body.author ?? "").trim();
+      const channel = String(body.channel ?? "").trim();
+
+      if (!title) {
         return errors.badRequest("title is required");
       }
 
-      const title = rawTitle.slice(0, 140);
+      const userId = process.env.DISCORD_USER_ID ?? process.env.INTEGRATION_USER_ID ?? "";
 
-      // workspace を決定（env > ユーザーのデフォルト）
-      let workspaceId = workspaceEnv || null;
-      if (!workspaceId && userId) {
-        workspaceId = await resolveWorkspaceId(userId);
-      }
-      if (!workspaceId) {
-        return errors.badRequest(
-          "workspaceId not resolved; set DISCORD_WORKSPACE_ID or DISCORD_USER_ID",
-        );
+      if (!userId) {
+        return errors.badRequest("userId not resolved; set DISCORD_USER_ID or INTEGRATION_USER_ID");
       }
 
-      const task = await prisma.task.create({
+      // Build description with metadata
+      const meta = [author && `by: ${author}`, channel && `ch: #${channel}`]
+        .filter(Boolean)
+        .join(" | ");
+      const bodyText = meta ? `${rawBody}\n\n---\n${meta}` : rawBody;
+
+      // Create IntakeItem (Global Inbox)
+      const item = await prisma.intakeItem.create({
         data: {
-          title,
-          description,
-          points: Number.isFinite(points) && points > 0 ? points : 3,
-          urgency,
-          risk,
-          status: TASK_STATUS.BACKLOG,
-          type: TASK_TYPE.PBI,
-          // automationState will be set by applyAutomationForTask based on score
-          workspace: { connect: { id: workspaceId } },
-          user: userId ? { connect: { id: userId } } : undefined,
+          source: "DISCORD",
+          status: "PENDING",
+          title: title.slice(0, 140),
+          body: bodyText,
+          user: { connect: { id: userId } },
         },
       });
 
-      if (userId) {
-        await applyAutomationForTask({
-          userId,
-          workspaceId,
-          task: {
-            id: task.id,
-            title: task.title,
-            description: task.description ?? "",
-            points: task.points,
-            status: task.status,
-          },
-        });
-      }
-
-      return ok({ taskId: task.id, workspaceId });
+      return ok({ itemId: item.id });
     },
   );
 }
