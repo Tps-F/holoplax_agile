@@ -13,6 +13,7 @@ import {
   type TaskStatus,
   type TaskType,
 } from "../../lib/types";
+import { FocusPanel } from "../components/focus-panel";
 import { LoadingButton } from "../components/loading-button";
 import { type AiSuggestionConfig, TaskCard } from "../components/task-card";
 import { useWorkspaceId } from "../components/use-workspace-id";
@@ -687,6 +688,8 @@ export default function BacklogPage() {
           </div>
         </div>
       </header>
+
+      <FocusPanel />
 
       {items.filter(
         (item) =>
