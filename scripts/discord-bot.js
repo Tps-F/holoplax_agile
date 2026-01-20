@@ -1,62 +1,120 @@
-// Minimal Discord bot that registers /holotask and forwards it to the Holoplax integration endpoint.
+// Discord bot that watches a specific channel and extracts tasks using LLM.
 // Usage: node scripts/discord-bot.js (requires env vars below and discord.js installed)
 
 /* eslint-disable @typescript-eslint/no-require-imports */
-const { Client, GatewayIntentBits, REST, Routes, SlashCommandBuilder } = require("discord.js");
+const { Client, GatewayIntentBits } = require("discord.js");
 
 const {
   DISCORD_BOT_TOKEN,
-  DISCORD_CLIENT_ID,
-  DISCORD_GUILD_ID,
+  DISCORD_WATCH_CHANNEL_ID,
   DISCORD_INTEGRATION_URL = "http://localhost:3000/api/integrations/discord",
   DISCORD_INTEGRATION_TOKEN,
+  OPENAI_API_KEY,
 } = process.env;
 
-if (!DISCORD_BOT_TOKEN || !DISCORD_CLIENT_ID || !DISCORD_GUILD_ID || !DISCORD_INTEGRATION_TOKEN) {
+if (
+  !DISCORD_BOT_TOKEN ||
+  !DISCORD_WATCH_CHANNEL_ID ||
+  !DISCORD_INTEGRATION_TOKEN
+) {
   console.error(
-    "Missing env: DISCORD_BOT_TOKEN, DISCORD_CLIENT_ID, DISCORD_GUILD_ID, DISCORD_INTEGRATION_TOKEN",
+    "Missing env: DISCORD_BOT_TOKEN, DISCORD_WATCH_CHANNEL_ID, DISCORD_INTEGRATION_TOKEN",
   );
   process.exit(1);
 }
 
-const commands = [
-  new SlashCommandBuilder()
-    .setName("holotask")
-    .setDescription("Holoplax にタスクを追加します")
-    .addStringOption((option) =>
-      option.setName("text").setDescription("タイトル | 説明 | ポイント(任意)").setRequired(true),
-    )
-    .toJSON(),
-];
-
-async function registerCommands() {
-  const rest = new REST({ version: "10" }).setToken(DISCORD_BOT_TOKEN);
-  await rest.put(Routes.applicationGuildCommands(DISCORD_CLIENT_ID, DISCORD_GUILD_ID), {
-    body: commands,
-  });
-  console.log("Slash command registered: /holotask");
+if (!OPENAI_API_KEY) {
+  console.error("Missing env: OPENAI_API_KEY (required for task extraction)");
+  process.exit(1);
 }
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+/**
+ * Use LLM to determine if a message contains a task/todo item.
+ * Returns { isTask: boolean, title?: string }
+ */
+async function analyzeMessage(content) {
+  const systemPrompt = `あなたはメッセージからタスクを抽出するアシスタントです。
+ユーザーのメッセージを読んで、それがタスク・TODO・やるべきこと・依頼・作業項目を含むかどうか判断してください。
 
-client.once("ready", async () => {
-  console.log(`Logged in as ${client.user.tag}`);
+判断基準:
+- 「〜する」「〜やる」「〜対応」「〜修正」「〜追加」などの行動を示す内容はタスク
+- そうでない場合も、内容がタスクに見受けられる場合も追加
+- 質問、雑談、感想、報告だけの場合はタスクではない
+- 「〜してほしい」「〜お願い」などの依頼もタスク
+
+JSON形式で回答してください:
+{"isTask": true/false, "title": "タスクの場合は簡潔なタイトル(30文字以内)"}`;
+
   try {
-    await registerCommands();
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content },
+        ],
+        max_tokens: 100,
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!res.ok) {
+      console.error("OpenAI API error:", res.status);
+      return { isTask: false };
+    }
+
+    const data = await res.json();
+    const text = data.choices?.[0]?.message?.content ?? "{}";
+    const result = JSON.parse(text);
+    return {
+      isTask: result.isTask === true,
+      title: result.title || null,
+    };
   } catch (error) {
-    console.error("Failed to register slash command", error);
+    console.error("LLM analysis failed:", error.message);
+    return { isTask: false };
   }
+}
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
-client.on("interactionCreate", async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-  if (interaction.commandName !== "holotask") return;
-  const text = interaction.options.getString("text", true);
-  const parts = text.split("|").map((p) => p.trim());
-  const [title, description, pointsRaw] = parts;
-  const points = Number(pointsRaw);
+client.once("ready", () => {
+  console.log(`Logged in as ${client.user.tag}`);
+  console.log(`Watching channel: ${DISCORD_WATCH_CHANNEL_ID}`);
+  console.log("Mode: LLM task extraction");
+});
 
-  await interaction.deferReply({ ephemeral: true });
+client.on("messageCreate", async (message) => {
+  // Ignore bot messages
+  if (message.author.bot) return;
+
+  // Only watch the specified channel
+  if (message.channel.id !== DISCORD_WATCH_CHANNEL_ID) return;
+
+  const content = message.content.trim();
+  if (!content) return;
+
+  // Analyze with LLM
+  const analysis = await analyzeMessage(content);
+
+  if (!analysis.isTask) {
+    console.log(`[Skip] Not a task: ${content.slice(0, 50)}...`);
+    return;
+  }
+
+  console.log(`[Task] Detected: ${analysis.title}`);
+
   try {
     const res = await fetch(DISCORD_INTEGRATION_URL, {
       method: "POST",
@@ -65,22 +123,27 @@ client.on("interactionCreate", async (interaction) => {
         Authorization: `Bearer ${DISCORD_INTEGRATION_TOKEN}`,
       },
       body: JSON.stringify({
-        title,
-        description,
-        points: Number.isFinite(points) && points > 0 ? points : undefined,
+        title: analysis.title,
+        body: content,
+        source: "discord",
+        author: message.author.username,
+        channel: message.channel.name,
       }),
     });
+
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error ?? `API error: ${res.status}`);
+      console.error(`Failed to create intake: ${data.error ?? res.status}`);
+      await message.react("❌");
+      return;
     }
+
     const data = await res.json();
-    await interaction.editReply(
-      `タスクを作成しました: ${title} (workspace ${data.workspaceId}, id ${data.taskId})`,
-    );
+    console.log(`Created intake item ${data.itemId}: ${analysis.title}`);
+    await message.react("📝");
   } catch (error) {
-    console.error("Create task failed", error);
-    await interaction.editReply(`失敗しました: ${error.message}`);
+    console.error("Create intake failed", error);
+    await message.react("❌");
   }
 });
 
