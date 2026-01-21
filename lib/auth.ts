@@ -128,7 +128,58 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
-    signIn: async ({ user }) => {
+    signIn: async ({ user, account, profile }) => {
+      if (account?.provider && account.provider !== "credentials") {
+        const email = user?.email;
+        if (!email) return false;
+
+        const existingUser = await prisma.user.findUnique({
+          where: { email },
+          select: { id: true, disabledAt: true },
+        });
+
+        if (existingUser?.disabledAt) return false;
+
+        if (existingUser) {
+          const existingAccount = await prisma.account.findUnique({
+            where: {
+              provider_providerAccountId: {
+                provider: account.provider,
+                providerAccountId: account.providerAccountId,
+              },
+            },
+          });
+
+          if (existingAccount) return true;
+
+          const canLink =
+            (account.provider === "google" &&
+              (profile as { email_verified?: boolean })?.email_verified === true) ||
+            account.provider === "github";
+
+          if (!canLink) return false;
+
+          await prisma.account.create({
+            data: {
+              userId: existingUser.id,
+              type: account.type,
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+              refresh_token: account.refresh_token,
+              access_token: account.access_token,
+              expires_at: account.expires_at,
+              token_type: account.token_type,
+              scope: account.scope,
+              id_token: account.id_token,
+              session_state: account.session_state as string | null,
+            },
+          });
+          return true;
+        }
+
+        return true;
+      }
+
       if (!user?.id) return true;
       const record = await prisma.user.findUnique({
         where: { id: user.id as string },
